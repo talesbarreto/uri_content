@@ -31,7 +31,11 @@ class UriContent {
       if (data != null) {
         return data.contentAsBytes();
       } else {
-        Future.error(Exception("Uri has `data` scheme but data is null"));
+        return Future.error(
+          Exception(
+            "The URI has a data scheme, but its data is null.",
+          ),
+        );
       }
     }
 
@@ -49,10 +53,11 @@ class UriContent {
       });
     }
     if (Platform.isAndroid && uri.scheme == "content") {
-      return _uriContentNativeApi.getContentFromUri(uri.toString());
+      return _uriContentNativeApi.getContentFromUri(uriSerializer(uri));
     }
 
     return Future.error(
-        "Could not get content from `$uri` scheme `${uri.scheme}`");
+      "Could not get content from `$uri` scheme `${uri.scheme}`",
+    );
   }
 }
