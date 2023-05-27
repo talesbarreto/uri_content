@@ -14,10 +14,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final uriContentFuture =
-      Uri.parse("https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md")
-          .getContent()
-          .then(utf8.decode);
+  final uriContentFuture = Uri.parse(
+          "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md")
+      .getContent()
+      .then(utf8.decode);
 
   @override
   Widget build(BuildContext context) {

@@ -9,7 +9,6 @@ extension UriContentGetter on Uri {
   Future<Uint8List> getContent() => UriContent().from(this);
 }
 
-
 class UriContent {
   final UriContentNativeApi _uriContentNativeApi;
   final HttpClient _httpClient;
@@ -21,8 +20,7 @@ class UriContent {
     UriContentNativeApi? uriContentNativeApi,
     HttpClient? httpClient,
     this.uriSerializer = _defaultUriSerializer,
-  })
-      : _uriContentNativeApi = uriContentNativeApi ?? UriContentNativeApi(),
+  })  : _uriContentNativeApi = uriContentNativeApi ?? UriContentNativeApi(),
         _httpClient = httpClient ?? HttpClient();
 
   /// Get the content from an Uri.
@@ -54,6 +52,7 @@ class UriContent {
       return _uriContentNativeApi.getContentFromUri(uri.toString());
     }
 
-    return Future.error("Could not get content from `$uri` scheme `${uri.scheme}`");
+    return Future.error(
+        "Could not get content from `$uri` scheme `${uri.scheme}`");
   }
 }
