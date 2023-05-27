@@ -1,12 +1,17 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:uri_content/src/native_api/uri_content_native_api.dart';
 
 extension UriContentGetter on Uri {
   /// [getContent] extension makes the process of get the content from an Uri easier.
   /// If you don't mind about clean architecture or code testability, use it directly.
   /// Otherwise, you can use [UriContent] to make it injectable and possible to mock
+  ///
+  /// Throws exception if it was nos possible to get the content
   Future<Uint8List> getContent() => UriContent().from(this);
+
+  /// same as [getContent] but return `null` on errors.
+  Future<Uint8List?> getContentOrNull() => UriContent().fromOrNull(this);
 }
 
 class UriContent {
@@ -23,8 +28,19 @@ class UriContent {
   })  : _uriContentNativeApi = uriContentNativeApi ?? UriContentNativeApi(),
         _httpClient = httpClient ?? HttpClient();
 
+  /// same as [from] but return `null` on errors.
+  Future<Uint8List?> fromOrNull(Uri uri) async {
+    try {
+      return await from(uri);
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// Get the content from an Uri.
   /// Supported schemes: data, file, http, https, Android content
+  ///
+  /// Throws exception if it was nos possible to get the content
   Future<Uint8List> from(Uri uri) async {
     if (uri.scheme == "data") {
       final data = uri.data;
