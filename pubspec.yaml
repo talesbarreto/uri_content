@@ -26,3 +26,12 @@ flutter:
         pluginClass: UriContentPlugin
       ios:
         pluginClass: UriContentPlugin
+      linux:
+        pluginClass: UriContentPlugin
+      macos:
+        pluginClass: UriContentPlugin
+      windows:
+        pluginClass: UriContentPluginCApi
+      web:
+        pluginClass: UriContentWeb
+        fileName: uri_content_web.dart
