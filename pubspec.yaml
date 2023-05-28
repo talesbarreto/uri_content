@@ -32,6 +32,3 @@ flutter:
         pluginClass: UriContentPlugin
       windows:
         pluginClass: UriContentPluginCApi
-      web:
-        pluginClass: UriContentWeb
-        fileName: uri_content_web.dart

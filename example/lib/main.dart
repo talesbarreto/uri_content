@@ -24,17 +24,15 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text("Test of Uris"),
+          title: const Text("uri_content example"),
         ),
-        body: ListView(
-          children: [
-            FutureBuilder<String>(
-              future: uriContentFuture,
-              builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
-                return Text(snapshot.data ?? "Loading?");
-              },
-            ),
-          ],
+        body: SingleChildScrollView(
+          child: FutureBuilder<String>(
+            future: uriContentFuture,
+            builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+              return Text(snapshot.data ?? "No data");
+            },
+          ),
         ),
       ),
     );
