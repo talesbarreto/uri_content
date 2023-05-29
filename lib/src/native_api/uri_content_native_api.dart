@@ -18,12 +18,12 @@ class UriContentNativeApi {
 
   static const MessageCodec<Object?> codec = StandardMessageCodec();
 
-  Future<Uint8List> getContentFromUri(String arg_url) async {
+  Future<void> getContentFromUri(String arg_url, int arg_requestId) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.UriContentNativeApi.getContentFromUri', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_url]) as List<Object?>?;
+        await channel.send(<Object?>[arg_url, arg_requestId]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -35,13 +35,38 @@ class UriContentNativeApi {
         message: replyList[1] as String?,
         details: replyList[2],
       );
-    } else if (replyList[0] == null) {
-      throw PlatformException(
-        code: 'null-error',
-        message: 'Host platform returned null value for non-null return value.',
-      );
     } else {
-      return (replyList[0] as Uint8List?)!;
+      return;
+    }
+  }
+}
+
+abstract class UriContentFlutterApi {
+  static const MessageCodec<Object?> codec = StandardMessageCodec();
+
+  void onDataReceived(int requestId, Uint8List? data, String? error);
+
+  static void setup(UriContentFlutterApi? api, {BinaryMessenger? binaryMessenger}) {
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.UriContentFlutterApi.onDataReceived', codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMessageHandler(null);
+      } else {
+        channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.UriContentFlutterApi.onDataReceived was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final int? arg_requestId = (args[0] as int?);
+          assert(arg_requestId != null,
+              'Argument for dev.flutter.pigeon.UriContentFlutterApi.onDataReceived was null, expected non-null int.');
+          final Uint8List? arg_data = (args[1] as Uint8List?);
+          final String? arg_error = (args[2] as String?);
+          api.onDataReceived(arg_requestId!, arg_data, arg_error);
+          return;
+        });
+      }
     }
   }
 }

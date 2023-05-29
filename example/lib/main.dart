@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:uri_content/uri_content.dart';
 
 void main() {
@@ -14,25 +16,32 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final uriContentFuture = Uri.parse(
-          "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md")
-      .getContent()
-      .then(utf8.decode);
+  final uriStringFuture = Uri.parse(
+    "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md",
+  ).getContent().then(utf8.decode);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text("uri_content example"),
+          title: const Text("pull_request_coverage readme"),
         ),
-        body: SingleChildScrollView(
-          child: FutureBuilder<String>(
-            future: uriContentFuture,
-            builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
-              return Text(snapshot.data ?? "No data");
-            },
-          ),
+        body: Column(
+          children: [
+            Flexible(
+              flex: 3,
+              child: FutureBuilder<String>(
+                future: uriStringFuture,
+                builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+                  return Markdown(
+                    data: snapshot.data ?? snapshot.connectionState.name,
+                    imageBuilder: (_, __, ___) => const SizedBox(),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

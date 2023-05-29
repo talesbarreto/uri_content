@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -18,12 +19,15 @@ extension UriContentGetter on Uri {
   Future<Uint8List?> getContentOrNull() => UriContent().fromOrNull(this);
 }
 
-class UriContent {
+class UriContent implements UriContentFlutterApi {
   final UriContentNativeApi _uriContentNativeApi;
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
+  final _pendingContentRequests = <int, StreamController<Uint8List>>{};
 
   static String _defaultUriSerializer(Uri uri) => uri.toString();
+
+  int _requestId = 0;
 
   /// [uriSerializer] is used to serialize tha URI to send it to the Android Platform when its scheme is `content`.
   /// On Android side, the URI will be parsed again.
@@ -35,12 +39,68 @@ class UriContent {
         _uriContentNativeApi = uriContentNativeApi ?? UriContentNativeApi(),
         _httpClient = httpClient ?? HttpClient();
 
-  /// same as [from] but return `null` on errors.
+  /// same as [getContentStream] but return `null` on errors.
   Future<Uint8List?> fromOrNull(Uri uri) async {
     try {
-      return await from(uri);
+      return from(uri);
     } catch (e) {
       return null;
+    }
+  }
+
+  Stream<Uint8List> _fromHttpUri(Uri uri) async* {
+    final request = await _httpClient.getUrl(uri);
+    final response = await request.close();
+    await for (final chunk in response) {
+      yield Uint8List.fromList(chunk);
+    }
+  }
+
+  Stream<Uint8List> _fromFileUri(Uri uri) async* {
+    final file = File.fromUri(uri);
+    await for (final bytes in file.openRead()) {
+      yield Uint8List.fromList(bytes);
+    }
+  }
+
+  Stream<Uint8List> _fromDataUri(Uri uri) async* {
+    final data = uri.data;
+    if (data != null) {
+      yield data.contentAsBytes();
+    } else {
+      throw Future.error(
+        Exception(
+          "The URI has a data scheme, but its data is null.",
+        ),
+      );
+    }
+  }
+
+  Stream<Uint8List> _fromAndroidContentUri(Uri uri) {
+    UriContentFlutterApi.setup(this);
+    final requestId = _requestId++;
+    final controller = StreamController<Uint8List>();
+    _pendingContentRequests[requestId] = controller;
+    controller.onListen = () {
+      _uriContentNativeApi.getContentFromUri(_uriSerializer(uri), requestId);
+    };
+    return controller.stream;
+  }
+
+  Stream<Uint8List> _fromUnknownUri(Uri uri) async* {
+    try {
+      // unsupported scheme, trying to get its content anyway
+      yield uri.data!.contentAsBytes();
+    } catch (e) {
+      if (!Platform.isAndroid && uri.scheme == UriScheme.content) {
+        throw Future.error(
+          "`content` scheme is only supported on Android.",
+        );
+      }
+      throw Future.error(
+        "scheme `${uri.scheme}` is not supported. "
+        "Feel free to open an issue or submit an pull request at https://github.com/talesbarreto/uri_content",
+      );
     }
   }
 
@@ -49,50 +109,59 @@ class UriContent {
   ///
   /// Throws exception if it was nos possible to get the content
   Future<Uint8List> from(Uri uri) async {
+    return getContentStream(uri).fold(Uint8List(0), (previous, element) {
+      return Uint8List.fromList([...previous, ...element]);
+    });
+  }
+
+  /// [getContentStream] returns a Stream of Uint8List where each event represents a chunk of the content from the specified URI.
+  /// This approach is more suitable when you don't need the entire content at once, such as in a request provider or
+  /// when directly saving the bytes into a File.
+  /// Handling small chunks significantly reduces memory consumption.
+  ///
+  /// Warning: To prevent resource leaks, make sure to either listen to the stream until the end or close it
+  /// if you want to abort the content reading.
+  Stream<Uint8List> getContentStream(Uri uri) {
     if (uri.scheme == UriScheme.data) {
-      final data = uri.data;
-      if (data != null) {
-        return data.contentAsBytes();
-      } else {
-        return Future.error(
-          Exception(
-            "The URI has a data scheme, but its data is null.",
-          ),
-        );
-      }
+      return _fromDataUri(uri);
     }
 
     if (uri.scheme == UriScheme.file) {
-      final file = File.fromUri(uri);
-      final content = await file.readAsBytes();
-      return Uint8List.fromList(content);
+      return _fromFileUri(uri);
     }
 
     if (uri.scheme == UriScheme.http || uri.scheme == UriScheme.https) {
-      final request = await _httpClient.getUrl(uri);
-      final response = await request.close();
-      return response.fold<Uint8List>(Uint8List(0), (previous, element) {
-        return Uint8List.fromList([...previous, ...element]);
-      });
+      return _fromHttpUri(uri);
     }
 
     if (Platform.isAndroid && uri.scheme == UriScheme.content) {
-      return _uriContentNativeApi.getContentFromUri(_uriSerializer(uri));
+      return _fromAndroidContentUri(uri);
     }
 
-    try {
-      // unsupported scheme, trying to get its content anyway
-      return uri.data!.contentAsBytes();
-    } catch (e) {
-      if (!Platform.isAndroid && uri.scheme == UriScheme.content) {
-        return Future.error(
-          "`content` scheme is only supported on Android.",
-        );
+    return _fromUnknownUri(uri);
+  }
+
+  void _removeRequest(int requestId) {
+    _pendingContentRequests.remove(requestId)?.close();
+  }
+
+  @override
+  void onDataReceived(int requestId, Uint8List? data, String? error) {
+    final controller = _pendingContentRequests[requestId];
+    if (controller != null) {
+      if (controller.isClosed) {
+        _pendingContentRequests.remove(requestId);
       }
-      return Future.error(
-        "scheme `${uri.scheme}` is not supported. "
-        "Feel free to open an issue or submit an pull request at https://github.com/talesbarreto/uri_content",
-      );
+      if (error != null) {
+        controller.addError(error);
+        _removeRequest(requestId);
+      } else {
+        if (data == null) {
+          _removeRequest(requestId);
+        } else {
+          controller.add(data);
+        }
+      }
     }
   }
 }

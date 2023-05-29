@@ -59,8 +59,7 @@ public class Api {
   /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
   public interface UriContentNativeApi {
 
-    @NonNull 
-    byte[] getContentFromUri(@NonNull String url);
+    void getContentFromUri(@NonNull String url, @NonNull Long requestId);
 
     /** The codec used by UriContentNativeApi. */
     static @NonNull MessageCodec<Object> getCodec() {
@@ -78,9 +77,10 @@ public class Api {
                 ArrayList<Object> wrapped = new ArrayList<Object>();
                 ArrayList<Object> args = (ArrayList<Object>) message;
                 String urlArg = (String) args.get(0);
+                Number requestIdArg = (Number) args.get(1);
                 try {
-                  byte[] output = api.getContentFromUri(urlArg);
-                  wrapped.add(0, output);
+                  api.getContentFromUri(urlArg, (requestIdArg == null) ? null : requestIdArg.longValue());
+                  wrapped.add(0, null);
                 }
  catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
@@ -92,6 +92,32 @@ public class Api {
           channel.setMessageHandler(null);
         }
       }
+    }
+  }
+  /** Generated class from Pigeon that represents Flutter messages that can be called from Java. */
+  public static class UriContentFlutterApi {
+    private final @NonNull BinaryMessenger binaryMessenger;
+
+    public UriContentFlutterApi(@NonNull BinaryMessenger argBinaryMessenger) {
+      this.binaryMessenger = argBinaryMessenger;
+    }
+
+    /** Public interface for sending reply. */ 
+    @SuppressWarnings("UnknownNullness")
+    public interface Reply<T> {
+      void reply(T reply);
+    }
+    /** The codec used by UriContentFlutterApi. */
+    static @NonNull MessageCodec<Object> getCodec() {
+      return new StandardMessageCodec();
+    }
+    public void onDataReceived(@NonNull Long requestIdArg, @Nullable byte[] dataArg, @Nullable String errorArg, @NonNull Reply<Void> callback) {
+      BasicMessageChannel<Object> channel =
+          new BasicMessageChannel<>(
+              binaryMessenger, "dev.flutter.pigeon.UriContentFlutterApi.onDataReceived", getCodec());
+      channel.send(
+          new ArrayList<Object>(Arrays.asList(requestIdArg, dataArg, errorArg)),
+          channelReply -> callback.reply(null));
     }
   }
 }
