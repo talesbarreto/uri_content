@@ -8,11 +8,13 @@ import 'package:uri_content/src/uri_scheme.dart';
 typedef UriSerializer = String Function(Uri uri);
 
 extension UriContentGetter on Uri {
-  /// [getContent] extension makes the process of get the content from an Uri easier.
-  /// If you don't mind about clean architecture or code testability, use it directly.
-  /// Otherwise, you can use [UriContent] to make it injectable and possible to mock
+  /// Here's the corrected version of your text:
   ///
-  /// Throws exception if it was nos possible to get the content
+  /// The [getContent] extension simplifies the process of retrieving content from a Uri.
+  /// If you don't mind disregarding clean architecture or code testability, you can use it directly.
+  /// However, if you prefer a more flexible approach, you can utilize [UriContent] to make it injectable and mockable.
+  ///
+  /// Note that [getContent] will throw an exception if it is not possible to retrieve the content.
   Future<Uint8List> getContent() => UriContent._instance.from(this);
 
   /// same as [getContent] but return `null` on errors.
@@ -20,10 +22,10 @@ extension UriContentGetter on Uri {
 }
 
 class UriContent implements UriContentFlutterApi {
-  /// Be careful using [UriContent.internal] constructor. You may leak resources in
-  /// [_pendingContentRequests] and mess with the native callback set in [_init]
-  /// If you do need to replace any dependency, do it before get any content and
-  /// use [setInstance] to replace the singleton instance.
+  /// Be careful when using the [UriContent.internal] constructor.
+  /// It is possible to leak resources in [_pendingContentRequests] and interfere with the native callback set in [_init].
+  /// If you need to replace any dependencies, make sure to do so before retrieving any content.
+  /// Additionally, utilize [setInstance] to replace the singleton instance.
   UriContent.internal({
     UriContentNativeApi? uriContentNativeApi,
     HttpClient? httpClient,
@@ -43,7 +45,8 @@ class UriContent implements UriContentFlutterApi {
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
 
-  // Used on `android content` scheme.
+  // Used on `android content` scheme. Since android will return chunks of the content,
+  // we need to save the stream somewhere to make it accessible on [onDataReceived]
   final _pendingContentRequests = <int, StreamController<Uint8List>>{};
 
   static String _defaultUriSerializer(Uri uri) => uri.toString();
@@ -67,16 +70,7 @@ class UriContent implements UriContentFlutterApi {
     }
   }
 
-  int _requestId = 0;
-
-  /// same as [getContentStream] but return `null` on errors.
-  Future<Uint8List?> fromOrNull(Uri uri) async {
-    try {
-      return from(uri);
-    } catch (e) {
-      return null;
-    }
-  }
+  int _androidContentRequestId = 0;
 
   Stream<Uint8List> _fromHttpUri(Uri uri) async* {
     final request = await _httpClient.getUrl(uri);
@@ -105,7 +99,7 @@ class UriContent implements UriContentFlutterApi {
   }
 
   Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) {
-    final requestId = _requestId++;
+    final requestId = _androidContentRequestId++;
     final controller = StreamController<Uint8List>();
     _pendingContentRequests[requestId] = controller;
     controller.onListen = () {
@@ -139,6 +133,8 @@ class UriContent implements UriContentFlutterApi {
   /// Supported schemes: data, file, http, https, Android content
   ///
   /// Throws exception if it was nos possible to get the content
+  ///
+  /// Consider using [getContentStream] if you are getting a large file
   Future<Uint8List> from(Uri uri) async {
     return getContentStream(uri).fold(Uint8List(0), (previous, element) {
       return Uint8List.fromList([...previous, ...element]);
@@ -178,8 +174,21 @@ class UriContent implements UriContentFlutterApi {
   }
 
   void _removeRequest(int requestId) {
-    _pendingContentRequests.remove(requestId)?.close();
+    final controller = _pendingContentRequests.remove(requestId);
+    if (controller?.isClosed == false) {
+      controller?.close();
+    }
   }
+
+  /// same as [getContentStream] but return `null` on errors.
+  Future<Uint8List?> fromOrNull(Uri uri) async {
+    try {
+      return from(uri);
+    } catch (e) {
+      return null;
+    }
+  }
+
 
   @override
   void onDataReceived(int requestId, Uint8List? data, String? error) {
