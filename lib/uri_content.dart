@@ -8,8 +8,6 @@ import 'package:uri_content/src/uri_scheme.dart';
 typedef UriSerializer = String Function(Uri uri);
 
 extension UriContentGetter on Uri {
-  /// Here's the corrected version of your text:
-  ///
   /// The [getContent] extension simplifies the process of retrieving content from a Uri.
   /// If you don't mind disregarding clean architecture or code testability, you can use it directly.
   /// However, if you prefer a more flexible approach, you can utilize [UriContent] to make it injectable and mockable.
@@ -134,7 +132,7 @@ class UriContent implements UriContentFlutterApi {
   ///
   /// Throws exception if it was nos possible to get the content
   ///
-  /// Consider using [getContentStream] if you are getting a large file
+  /// Consider using [getContentStream] if you are retrieving a large file
   Future<Uint8List> from(Uri uri) async {
     return getContentStream(uri).fold(Uint8List(0), (previous, element) {
       return Uint8List.fromList([...previous, ...element]);
@@ -189,8 +187,8 @@ class UriContent implements UriContentFlutterApi {
     }
   }
 
-
   @override
+  @protected
   void onDataReceived(int requestId, Uint8List? data, String? error) {
     final controller = _pendingContentRequests[requestId];
     if (controller != null) {

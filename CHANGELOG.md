@@ -1,3 +1,6 @@
+## 0.0.4
+* new `getContentStream` method, allowing to retrieve chunks of buffered data instead of the entire data at once.
+
 ## 0.0.3
 
 * support for linux, macos and windows
