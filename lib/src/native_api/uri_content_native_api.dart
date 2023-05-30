@@ -18,12 +18,12 @@ class UriContentNativeApi {
 
   static const MessageCodec<Object?> codec = StandardMessageCodec();
 
-  Future<void> getContentFromUri(String arg_url, int arg_requestId) async {
+  Future<void> getContentFromUri(String arg_url, int arg_requestId, int arg_bufferSize) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.UriContentNativeApi.getContentFromUri', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_url, arg_requestId]) as List<Object?>?;
+        await channel.send(<Object?>[arg_url, arg_requestId, arg_bufferSize]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',

@@ -16,10 +16,6 @@ import kotlin.coroutines.coroutineContext
 
 /** UriContentPlugin */
 class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeApi {
-    companion object {
-        const val BUFFER_SIZE = 1024 * 1024 * 32
-    }
-
     private lateinit var channel: MethodChannel
     private var contentResolver: ContentResolver? = null
     private var flutterApi: Api.UriContentFlutterApi? = null
@@ -44,24 +40,26 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeA
         channel.setMethodCallHandler(null)
     }
 
-    override fun getContentFromUri(url: String, requestId: Long) {
+    override fun getContentFromUri(url: String, requestId: Long, bufferSize: Long) {
         val contentResolver = this.contentResolver ?: throw Exception("ContentResolver is null")
         val flutterApi = this.flutterApi ?: throw Exception("Flutter API is null")
         val uri = Uri.parse(url)
         val stream = contentResolver.openInputStream(uri)
-        val bufferedInputStream = BufferedInputStream(stream, BUFFER_SIZE)
+        val bufferedInputStream = BufferedInputStream(stream, bufferSize.toInt())
 
         if (stream == null) {
-            flutterApi.onDataReceived(requestId, null, "could not open stream") { }
+            flutterApi.onDataReceived(requestId, null, "could not open data stream") { }
             return
         }
         try {
             var bytesRead: Int
-            val buffer = ByteArray(BUFFER_SIZE)
+            val buffer = ByteArray(bufferSize.toInt())
             while (bufferedInputStream.read(buffer).also { bytesRead = it } != -1) {
                 val data = buffer.sliceArray(0 until bytesRead)
                 flutterApi.onDataReceived(requestId, data, null) { }
             }
+            // dataArg null means we reached EOF and stream can be closed
+            flutterApi.onDataReceived(requestId, null, null) { }
         } catch (exception: Exception) {
             flutterApi.onDataReceived(requestId, null, exception.toString()) { }
         } finally {

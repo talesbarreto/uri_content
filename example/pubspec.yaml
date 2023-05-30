@@ -5,8 +5,7 @@ description: Demonstrates how to use the uri_content plugin.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: '>=2.19.6 <3.0.0'
-
+  sdk: '>=2.19.6 <4.0.0'
 
 dependencies:
   flutter:

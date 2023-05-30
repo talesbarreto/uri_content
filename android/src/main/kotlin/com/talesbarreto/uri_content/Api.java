@@ -59,7 +59,7 @@ public class Api {
   /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
   public interface UriContentNativeApi {
 
-    void getContentFromUri(@NonNull String url, @NonNull Long requestId);
+    void getContentFromUri(@NonNull String url, @NonNull Long requestId, @NonNull Long bufferSize);
 
     /** The codec used by UriContentNativeApi. */
     static @NonNull MessageCodec<Object> getCodec() {
@@ -78,8 +78,9 @@ public class Api {
                 ArrayList<Object> args = (ArrayList<Object>) message;
                 String urlArg = (String) args.get(0);
                 Number requestIdArg = (Number) args.get(1);
+                Number bufferSizeArg = (Number) args.get(2);
                 try {
-                  api.getContentFromUri(urlArg, (requestIdArg == null) ? null : requestIdArg.longValue());
+                  api.getContentFromUri(urlArg, (requestIdArg == null) ? null : requestIdArg.longValue(), (bufferSizeArg == null) ? null : bufferSizeArg.longValue());
                   wrapped.add(0, null);
                 }
  catch (Throwable exception) {

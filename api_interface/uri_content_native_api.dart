@@ -2,7 +2,7 @@ import 'package:pigeon/pigeon.dart';
 
 @HostApi()
 abstract class UriContentNativeApi {
-  void getContentFromUri(String url, int requestId);
+  void getContentFromUri(String url, int requestId, int bufferSize);
 }
 
 @FlutterApi()
