@@ -42,9 +42,7 @@ class UriContent {
   Stream<Uint8List> _fromHttpUri(Uri uri) async* {
     final request = await _httpClient.getUrl(uri);
     final response = await request.close();
-    await for (final chunk in response) {
-      yield Uint8List.fromList(chunk);
-    }
+    yield* response.map(Uint8List.fromList);
   }
 
   Stream<Uint8List> _fromFileUri(Uri uri) {
