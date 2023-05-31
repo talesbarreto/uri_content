@@ -20,15 +20,15 @@ extension UriContentGetter on Uri {
 }
 
 class UriContent {
-  final UriContentApi _flutterApi;
+  final UriContentApi _uriContentApi;
 
   UriContent({
     HttpClient? httpClient,
     UriSerializer uriSerializer = _defaultUriSerializer,
-    UriContentApi? flutterApi,
+    UriContentApi? uriContentApi,
   })  : _uriSerializer = uriSerializer,
         _httpClient = httpClient ?? HttpClient(),
-        _flutterApi = flutterApi ?? UriContentApi();
+        _uriContentApi = uriContentApi ?? UriContentApi();
 
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
@@ -60,13 +60,13 @@ class UriContent {
   }
 
   Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) async* {
-    final requestId = _flutterApi.getNextId();
-    _flutterApi.getContentFromUri(
+    final requestId = _uriContentApi.getNextId();
+    _uriContentApi.getContentFromUri(
       _uriSerializer(uri),
       requestId,
       bufferSize,
     );
-    await for (final data in _flutterApi.newDataReceivedStream) {
+    await for (final data in _uriContentApi.newDataReceivedStream) {
       if (data.requestId == requestId) {
         final error = data.error;
         final uint8List = data.data;
@@ -109,6 +109,16 @@ class UriContent {
     });
   }
 
+  /// same as [getContentStream] but return `null` on errors.
+  Future<Uint8List?> fromOrNull(Uri uri) async {
+    try {
+      final result = await from(uri);
+      return result;
+    } catch (e) {
+      return null;
+    }
+  }
+
   /// [getContentStream] returns a Stream of Uint8List where each event represents a chunk of the content from the specified URI.
   /// This approach is more suitable when you don't need the entire content at once, such as in a request provider or
   /// when directly saving the bytes into a File.
@@ -139,14 +149,5 @@ class UriContent {
     }
 
     return _fromUnknownUri(uri);
-  }
-
-  /// same as [getContentStream] but return `null` on errors.
-  Future<Uint8List?> fromOrNull(Uri uri) async {
-    try {
-      return from(uri);
-    } catch (e) {
-      return null;
-    }
   }
 }
