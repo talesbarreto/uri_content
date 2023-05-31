@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:uri_content/src/native_api/uri_content_native_api.dart';
+import 'package:uri_content/src/native_data_provider/native_data_provider.dart';
 import 'package:uri_content/src/uri_scheme.dart';
 
 typedef UriSerializer = String Function(Uri uri);
@@ -13,18 +14,16 @@ extension UriContentGetter on Uri {
   /// However, if you prefer a more flexible approach, you can utilize [UriContent] to make it injectable and mockable.
   ///
   /// Note that [getContent] will throw an exception if it is not possible to retrieve the content.
-  Future<Uint8List> getContent() => UriContent._instance.from(this);
+  Future<Uint8List> getContent() => UriContent().from(this);
 
   /// same as [getContent] but return `null` on errors.
-  Future<Uint8List?> getContentOrNull() => UriContent._instance.fromOrNull(this);
+  Future<Uint8List?> getContentOrNull() => UriContent().fromOrNull(this);
 }
 
-class UriContent implements UriContentFlutterApi {
-  /// Be careful when using the [UriContent.internal] constructor.
-  /// It is possible to leak resources in [_pendingContentRequests] and interfere with the native callback set in [_init].
-  /// If you need to replace any dependencies, make sure to do so before retrieving any content.
-  /// Additionally, utilize [setInstance] to replace the singleton instance.
-  UriContent.internal({
+class UriContent {
+  final _nativeApi = NativeDataProvider();
+
+  UriContent({
     UriContentNativeApi? uriContentNativeApi,
     HttpClient? httpClient,
     UriSerializer uriSerializer = _defaultUriSerializer,
@@ -32,41 +31,11 @@ class UriContent implements UriContentFlutterApi {
         _uriContentNativeApi = uriContentNativeApi ?? UriContentNativeApi(),
         _httpClient = httpClient ?? HttpClient();
 
-  // Sorry kids, it is necessary to listen to Native calls and store
-  // pending requests in `_pendingContentRequests`. It would be a mess if
-  // we had several instances of UriContent.
-  static UriContent _instance = UriContent.internal().._init();
-
-  factory UriContent() => UriContent._instance;
-
   final UriContentNativeApi _uriContentNativeApi;
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
 
-  // Used on `android content` scheme. Since android will return chunks of the content,
-  // we need to save the stream somewhere to make it accessible on [onDataReceived]
-  final _pendingContentRequests = <int, StreamController<Uint8List>>{};
-
   static String _defaultUriSerializer(Uri uri) => uri.toString();
-
-  static void setInstance(UriContent uriContent) {
-    final oldInstance = UriContent._instance;
-    UriContent._instance = uriContent;
-    uriContent._init();
-    oldInstance._dispose();
-  }
-
-  void _init() {
-    UriContentFlutterApi.setup(this);
-  }
-
-  /// [_dispose] is only called on [setInstance].
-  /// There is no need to dispose [UriContent] since it is a singleton
-  void _dispose() {
-    for (final key in _pendingContentRequests.keys) {
-      _pendingContentRequests.remove(key)?.close();
-    }
-  }
 
   int _androidContentRequestId = 0;
 
@@ -96,18 +65,27 @@ class UriContent implements UriContentFlutterApi {
     }
   }
 
-  Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) {
+  Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) async* {
     final requestId = _androidContentRequestId++;
-    final controller = StreamController<Uint8List>();
-    _pendingContentRequests[requestId] = controller;
-    controller.onListen = () {
-      _uriContentNativeApi.getContentFromUri(
-        _uriSerializer(uri),
-        requestId,
-        bufferSize,
-      );
-    };
-    return controller.stream;
+    _uriContentNativeApi.getContentFromUri(
+      _uriSerializer(uri),
+      requestId,
+      bufferSize,
+    );
+    await for (final data in _nativeApi.stream) {
+      if (data.requestId == requestId) {
+        final error = data.error;
+        final uint8List = data.data;
+        if (error != null) {
+          throw error;
+        }
+        if (uint8List != null) {
+          yield uint8List;
+        } else {
+          break; // EOF
+        }
+      }
+    }
   }
 
   Stream<Uint8List> _fromUnknownUri(Uri uri) async* {
@@ -171,40 +149,12 @@ class UriContent implements UriContentFlutterApi {
     return _fromUnknownUri(uri);
   }
 
-  void _removeRequest(int requestId) {
-    final controller = _pendingContentRequests.remove(requestId);
-    if (controller?.isClosed == false) {
-      controller?.close();
-    }
-  }
-
   /// same as [getContentStream] but return `null` on errors.
   Future<Uint8List?> fromOrNull(Uri uri) async {
     try {
       return from(uri);
     } catch (e) {
       return null;
-    }
-  }
-
-  @override
-  @protected
-  void onDataReceived(int requestId, Uint8List? data, String? error) {
-    final controller = _pendingContentRequests[requestId];
-    if (controller != null) {
-      if (controller.isClosed) {
-        _pendingContentRequests.remove(requestId);
-      }
-      if (error != null) {
-        controller.addError(error);
-        _removeRequest(requestId);
-      } else {
-        if (data == null) {
-          _removeRequest(requestId);
-        } else {
-          controller.add(data);
-        }
-      }
     }
   }
 }

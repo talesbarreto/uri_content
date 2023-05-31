@@ -1,3 +1,6 @@
+## 0.0.5
+* Fix false `Unclosed instance of 'Sink'.` warning by pub dev
+
 ## 0.0.4
 * new `getContentStream` method, allowing to retrieve chunks of buffered data instead of the entire data at once.
 
