@@ -4,16 +4,20 @@ import 'dart:typed_data';
 import 'package:uri_content/src/native_api/uri_content_native_api.dart';
 import 'package:uri_content/src/native_data_provider/uri_content_chunk_data.dart';
 
-class NativeDataProvider implements UriContentFlutterApi {
-  static final _instance = NativeDataProvider._();
+class UriContentApi extends UriContentNativeApi implements UriContentFlutterApi {
+  static final _instance = UriContentApi._();
 
-  factory NativeDataProvider() => _instance;
+  factory UriContentApi() => _instance;
 
   final _streamController = StreamController<UriContentChunkData>();
 
-  late final stream = _streamController.stream.asBroadcastStream();
+  late final newDataReceivedStream = _streamController.stream.asBroadcastStream();
 
-  NativeDataProvider._() {
+  int _requestId = 0;
+
+  int getNextId() => _requestId++;
+
+  UriContentApi._() {
     UriContentFlutterApi.setup(this);
   }
 

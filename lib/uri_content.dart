@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:uri_content/src/native_api/uri_content_native_api.dart';
-import 'package:uri_content/src/native_data_provider/native_data_provider.dart';
+import 'package:uri_content/src/native_data_provider/uri_content_flutter_api_impl.dart';
 import 'package:uri_content/src/uri_scheme.dart';
 
 typedef UriSerializer = String Function(Uri uri);
@@ -21,23 +20,24 @@ extension UriContentGetter on Uri {
 }
 
 class UriContent {
-  final _nativeApi = NativeDataProvider();
+  final UriContentApi _flutterApi;
 
   UriContent({
-    UriContentNativeApi? uriContentNativeApi,
     HttpClient? httpClient,
     UriSerializer uriSerializer = _defaultUriSerializer,
+    UriContentApi? flutterApi,
   })  : _uriSerializer = uriSerializer,
-        _uriContentNativeApi = uriContentNativeApi ?? UriContentNativeApi(),
-        _httpClient = httpClient ?? HttpClient();
+        _httpClient = httpClient ?? HttpClient(),
+        _flutterApi = flutterApi ?? UriContentApi();
 
-  final UriContentNativeApi _uriContentNativeApi;
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
 
   static String _defaultUriSerializer(Uri uri) => uri.toString();
 
-  int _androidContentRequestId = 0;
+  Stream<T> _getError<T>(String error) {
+    return Stream<T>.error(error);
+  }
 
   Stream<Uint8List> _fromHttpUri(Uri uri) async* {
     final request = await _httpClient.getUrl(uri);
@@ -55,27 +55,23 @@ class UriContent {
     if (data != null) {
       yield data.contentAsBytes();
     } else {
-      throw Future.error(
-        Exception(
-          "The URI has a data scheme, but its data is null.",
-        ),
-      );
+      yield* _getError("The URI has a data scheme, but its data is null.");
     }
   }
 
   Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) async* {
-    final requestId = _androidContentRequestId++;
-    _uriContentNativeApi.getContentFromUri(
+    final requestId = _flutterApi.getNextId();
+    _flutterApi.getContentFromUri(
       _uriSerializer(uri),
       requestId,
       bufferSize,
     );
-    await for (final data in _nativeApi.stream) {
+    await for (final data in _flutterApi.newDataReceivedStream) {
       if (data.requestId == requestId) {
         final error = data.error;
         final uint8List = data.data;
         if (error != null) {
-          throw error;
+          yield* _getError(error);
         }
         if (uint8List != null) {
           yield uint8List;
@@ -92,11 +88,9 @@ class UriContent {
       yield uri.data!.contentAsBytes();
     } catch (e) {
       if (!Platform.isAndroid && uri.scheme == UriScheme.content) {
-        throw Future.error(
-          "`content` scheme is only supported on Android.",
-        );
+        yield* _getError("`content` scheme is only supported on Android.");
       }
-      throw Future.error(
+      yield* _getError(
         "scheme `${uri.scheme}` is not supported. "
         "Feel free to open an issue or submit an pull request at https://github.com/talesbarreto/uri_content",
       );
