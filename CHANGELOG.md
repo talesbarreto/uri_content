@@ -1,7 +1,6 @@
 ## 0.0.6
 * Improved error handling
 
-* Fix false `Unclosed instance of 'Sink'.` warning by pub dev
 ## 0.0.5
 * Fix false `Unclosed instance of 'Sink'.` warning by pub dev
 
