@@ -25,6 +25,8 @@ class UriContent {
   final UriContentApi _uriContentApi;
   final InternalPlatform _platform;
 
+  static String _defaultUriSerializer(Uri uri) => uri.toString();
+
   UriContent({
     HttpClient? httpClient,
     UriSerializer uriSerializer = _defaultUriSerializer,
@@ -37,8 +39,6 @@ class UriContent {
 
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
-
-  static String _defaultUriSerializer(Uri uri) => uri.toString();
 
   Stream<Uint8List> _fromHttpUri(Uri uri) async* {
     final request = await _httpClient.getUrl(uri);
@@ -62,17 +62,20 @@ class UriContent {
 
   Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) async* {
     final requestId = _uriContentApi.getNextId();
+
     _uriContentApi.getContentFromUri(
       _uriSerializer(uri),
       requestId,
       bufferSize,
     );
+
     await for (final data in _uriContentApi.newDataReceivedStream) {
       if (data.requestId == requestId) {
         final error = data.error;
         final uint8List = data.data;
         if (error != null) {
           yield* Stream.error(UriContentError(error));
+          break;
         }
         if (uint8List != null) {
           yield uint8List;
@@ -147,5 +150,5 @@ class UriContent {
     }
 
     return _fromUnknownUri(uri);
-  }
+  }    
 }

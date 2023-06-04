@@ -1,3 +1,6 @@
+## 1.0.0
+* Stable version
+
 ## 0.0.6
 * Improved error handling
 
