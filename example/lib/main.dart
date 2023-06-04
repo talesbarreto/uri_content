@@ -32,7 +32,8 @@ class _MyAppState extends State<MyApp> {
               flex: 3,
               child: FutureBuilder<String>(
                 future: uriStringFuture,
-                builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+                builder:
+                    (BuildContext context, AsyncSnapshot<String> snapshot) {
                   return Markdown(
                     data: snapshot.data ?? snapshot.connectionState.name,
                     imageBuilder: (_, __, ___) => const SizedBox(),

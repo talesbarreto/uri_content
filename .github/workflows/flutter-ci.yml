@@ -1,0 +1,36 @@
+name: Flutter CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.10.0'
+          channel: 'stable'
+      - name: checkout
+        run: |
+          commits=${{ github.event.pull_request.commits }}
+          if [[ -n "$commits" ]]; then
+            # Prepare enough depth for diffs with main
+            git fetch --depth="$(( commits + 1 ))"
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-pub .
+
+      - name: Format
+        run: dart format . --set-exit-if-changed
+
+      - name: Test
+        run: flutter test --coverage
+
+      - name: Coverage
+        run: git diff origin/main | flutter pub run pull_request_coverage

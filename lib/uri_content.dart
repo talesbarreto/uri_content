@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:uri_content/src/internal_platform.dart';
 import 'package:uri_content/src/native_data_provider/uri_content_flutter_api_impl.dart';
+import 'package:uri_content/src/uri_content_exception.dart';
 import 'package:uri_content/src/uri_scheme.dart';
 
 typedef UriSerializer = String Function(Uri uri);
@@ -21,23 +23,22 @@ extension UriContentGetter on Uri {
 
 class UriContent {
   final UriContentApi _uriContentApi;
+  final InternalPlatform _platform;
 
   UriContent({
     HttpClient? httpClient,
     UriSerializer uriSerializer = _defaultUriSerializer,
     UriContentApi? uriContentApi,
+    InternalPlatform? internalPlatform,
   })  : _uriSerializer = uriSerializer,
         _httpClient = httpClient ?? HttpClient(),
-        _uriContentApi = uriContentApi ?? UriContentApi();
+        _uriContentApi = uriContentApi ?? UriContentApi(),
+        _platform = internalPlatform ?? InternalPlatform();
 
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
 
   static String _defaultUriSerializer(Uri uri) => uri.toString();
-
-  Stream<T> _getError<T>(String error) {
-    return Stream<T>.error(error);
-  }
 
   Stream<Uint8List> _fromHttpUri(Uri uri) async* {
     final request = await _httpClient.getUrl(uri);
@@ -55,7 +56,7 @@ class UriContent {
     if (data != null) {
       yield data.contentAsBytes();
     } else {
-      yield* _getError("The URI has a data scheme, but its data is null.");
+      yield* Stream.error(UriContentError.dataSchemeWithNoData);
     }
   }
 
@@ -71,7 +72,7 @@ class UriContent {
         final error = data.error;
         final uint8List = data.data;
         if (error != null) {
-          yield* _getError(error);
+          yield* Stream.error(UriContentError(error));
         }
         if (uint8List != null) {
           yield uint8List;
@@ -87,13 +88,10 @@ class UriContent {
       // unsupported scheme, trying to get its content anyway
       yield uri.data!.contentAsBytes();
     } catch (e) {
-      if (!Platform.isAndroid && uri.scheme == UriScheme.content) {
-        yield* _getError("`content` scheme is only supported on Android.");
+      if (!_platform.isAndroid && uri.scheme == UriScheme.content) {
+        yield* Stream.error(UriContentError.contentOnlySupportedByAndroid);
       }
-      yield* _getError(
-        "scheme `${uri.scheme}` is not supported. "
-        "Feel free to open an issue or submit an pull request at https://github.com/talesbarreto/uri_content",
-      );
+      yield* Stream.error(UnsupportedSchemeError(uri.scheme));
     }
   }
 
@@ -144,7 +142,7 @@ class UriContent {
       return _fromHttpUri(uri);
     }
 
-    if (Platform.isAndroid && uri.scheme == UriScheme.content) {
+    if (_platform.isAndroid && uri.scheme == UriScheme.content) {
       return _fromAndroidContentUri(uri, bufferSize);
     }
 

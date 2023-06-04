@@ -17,6 +17,7 @@ dev_dependencies:
   flutter_lints: ^2.0.1
   pigeon: ^10.0.0
   plugin_platform_interface: ^2.1.4
+  pull_request_coverage: ^1.3.5
 
 flutter:
   plugin:
