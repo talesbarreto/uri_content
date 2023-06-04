@@ -150,5 +150,5 @@ class UriContent {
     }
 
     return _fromUnknownUri(uri);
-  }    
+  }
 }
