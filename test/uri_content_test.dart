@@ -41,7 +41,7 @@ void main() {
     group("and platform is Android", () {
       test("request content to native API", () async {
         final api = FakeUriContentApi(
-          newDataReceivedStream: Stream.empty(),
+          newDataReceivedStream: const Stream.empty(),
         );
         final uriContent = _getUriContent(
           uriContentApi: api,
