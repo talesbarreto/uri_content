@@ -26,22 +26,14 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text("pull_request_coverage readme"),
         ),
-        body: Column(
-          children: [
-            Flexible(
-              flex: 3,
-              child: FutureBuilder<String>(
-                future: uriStringFuture,
-                builder:
-                    (BuildContext context, AsyncSnapshot<String> snapshot) {
-                  return Markdown(
-                    data: snapshot.data ?? snapshot.connectionState.name,
-                    imageBuilder: (_, __, ___) => const SizedBox(),
-                  );
-                },
-              ),
-            ),
-          ],
+        body: FutureBuilder<String>(
+          future: uriStringFuture,
+          builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+            return Markdown(
+              data: snapshot.data ?? snapshot.connectionState.name,
+              imageBuilder: (_, __, ___) => const SizedBox(),
+            );
+          },
         ),
       ),
     );
