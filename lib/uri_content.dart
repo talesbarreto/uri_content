@@ -25,9 +25,13 @@ class UriContent {
   final UriContentApi _uriContentApi;
   final InternalPlatform _platform;
 
+  /// [defaultHttpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
+  final Map<String, Object> defaultHttpHeaders;
+
   static String _defaultUriSerializer(Uri uri) => uri.toString();
 
   UriContent({
+    this.defaultHttpHeaders = const {},
     HttpClient? httpClient,
     UriSerializer uriSerializer = _defaultUriSerializer,
     UriContentApi? uriContentApi,
@@ -40,8 +44,18 @@ class UriContent {
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
 
-  Stream<Uint8List> _fromHttpUri(Uri uri) async* {
+  void _addHeadersToRequest(HttpClientRequest request, Map<String, Object> headers) {
+    for (final header in defaultHttpHeaders.entries) {
+      request.headers.set(header.key, header.value);
+    }
+    for (final header in headers.entries) {
+      request.headers.set(header.key, header.value);
+    }
+  }
+
+  Stream<Uint8List> _fromHttpUri(Uri uri, Map<String, Object> httpHeaders) async* {
     final request = await _httpClient.getUrl(uri);
+    _addHeadersToRequest(request, httpHeaders);
     final response = await request.close();
     yield* response.map(Uint8List.fromList);
   }
@@ -101,19 +115,28 @@ class UriContent {
   /// Get the content from an Uri.
   /// Supported schemes: data, file, http, https, Android content
   ///
+  ///
+  /// [httpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
+  ///
   /// Throws exception if it was nos possible to get the content
   ///
   /// Consider using [getContentStream] if you are retrieving a large file
-  Future<Uint8List> from(Uri uri) async {
-    return getContentStream(uri).fold(Uint8List(0), (previous, element) {
+  Future<Uint8List> from(
+    Uri uri, {
+    Map<String, Object> httpHeaders = const {},
+  }) async {
+    return getContentStream(uri, httpHeaders: httpHeaders).fold(Uint8List(0), (previous, element) {
       return Uint8List.fromList([...previous, ...element]);
     });
   }
 
   /// same as [getContentStream] but return `null` on errors.
-  Future<Uint8List?> fromOrNull(Uri uri) async {
+  Future<Uint8List?> fromOrNull(
+    Uri uri, {
+    Map<String, Object> httpHeaders = const {},
+  }) async {
     try {
-      final result = await from(uri);
+      final result = await from(uri, httpHeaders: httpHeaders);
       return result;
     } catch (e) {
       return null;
@@ -125,6 +148,8 @@ class UriContent {
   /// when directly saving the bytes into a File.
   /// Handling small chunks significantly reduces memory consumption.
   ///
+  /// [httpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
+  ///
   /// [bufferSize] sets the total of bytes to be send on each stream event. It ONLY affects `android content` Uris
   ///
   /// Warning: To prevent resource leaks, make sure to either listen to the stream until the end or close it
@@ -132,6 +157,7 @@ class UriContent {
   Stream<Uint8List> getContentStream(
     Uri uri, {
     int bufferSize = 1024 * 512,
+    Map<String, Object> httpHeaders = const {},
   }) {
     if (uri.scheme == UriScheme.data) {
       return _fromDataUri(uri);
@@ -142,7 +168,7 @@ class UriContent {
     }
 
     if (uri.scheme == UriScheme.http || uri.scheme == UriScheme.https) {
-      return _fromHttpUri(uri);
+      return _fromHttpUri(uri, httpHeaders);
     }
 
     if (_platform.isAndroid && uri.scheme == UriScheme.content) {
