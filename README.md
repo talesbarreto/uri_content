@@ -1,11 +1,6 @@
 `uri_content` allows you to fetch the content of a URI without creating any temporary files during the process. You don't need to worry about any garbage being left behind.
 
-
-## Supported schemes:
-- file
-- data
-- http/https
-- content (Android only)
+It supports the following schemes: `file`, `data`, `http/https`, `content` (Android only)
 
 ## Getting Started
 
@@ -13,10 +8,10 @@
 import 'package:uri_content/uri_content.dart';
 ```
 
-### Extension function
+### Using `getContent()` function
 
 ```dart
-Future<void> printPullRequestCoverageReadme() async {
+Future<void> getReadmeContent() async {
   try {
     final uri = Uri.parse(
       "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md",
@@ -31,11 +26,13 @@ Future<void> printPullRequestCoverageReadme() async {
 
 ### `UriContent` instance
 
+`UriContent` is preferred because it offers additional options such as custom HTTP headers and the ability to adjust the default buffer size for content schemes. It also facilitates code testing since you can mock its instance.
+
 ```dart
 
 final uriContent = UriContent();
 
-Future<void> printPullRequestCoverageReadmeLength() async {
+Future<void> getReadmeLength() async {
   try {
     final content = await uriContent.from(Uri.parse(
       "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md",

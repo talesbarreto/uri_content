@@ -1,3 +1,6 @@
+## 1.1.0
+* Support for custom http headers
+
 ## 1.0.0
 * Stable version
 

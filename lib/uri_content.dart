@@ -44,7 +44,10 @@ class UriContent {
   final HttpClient _httpClient;
   final UriSerializer _uriSerializer;
 
-  void _addHeadersToRequest(HttpClientRequest request, Map<String, Object> headers) {
+  void _addHeadersToRequest(
+    HttpClientRequest request,
+    Map<String, Object> headers,
+  ) {
     for (final header in defaultHttpHeaders.entries) {
       request.headers.set(header.key, header.value);
     }
@@ -53,7 +56,10 @@ class UriContent {
     }
   }
 
-  Stream<Uint8List> _fromHttpUri(Uri uri, Map<String, Object> httpHeaders) async* {
+  Stream<Uint8List> _fromHttpUri(
+    Uri uri,
+    Map<String, Object> httpHeaders,
+  ) async* {
     final request = await _httpClient.getUrl(uri);
     _addHeadersToRequest(request, httpHeaders);
     final response = await request.close();
@@ -125,9 +131,10 @@ class UriContent {
     Uri uri, {
     Map<String, Object> httpHeaders = const {},
   }) async {
-    return getContentStream(uri, httpHeaders: httpHeaders).fold(Uint8List(0), (previous, element) {
-      return Uint8List.fromList([...previous, ...element]);
-    });
+    return getContentStream(uri, httpHeaders: httpHeaders).fold(
+      Uint8List(0),
+      (previous, element) => Uint8List.fromList([...previous, ...element]),
+    );
   }
 
   /// same as [getContentStream] but return `null` on errors.
