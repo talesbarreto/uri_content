@@ -83,27 +83,42 @@ class UriContent {
   Stream<Uint8List> _fromAndroidContentUri(Uri uri, int bufferSize) async* {
     final requestId = _uriContentApi.getNextId();
 
-    _uriContentApi.getContentFromUri(
-      _uriSerializer(uri),
-      requestId,
-      bufferSize,
-    );
-
-    await for (final data in _uriContentApi.newDataReceivedStream) {
-      if (data.requestId == requestId) {
-        final error = data.error;
-        final uint8List = data.data;
-        if (error != null) {
-          yield* Stream.error(UriContentError(error));
-          break;
-        }
-        if (uint8List != null) {
-          yield uint8List;
-        } else {
-          break; // EOF
+    Stream<Uint8List> currentRequestBytesStream() async* {
+      await for (final data in _uriContentApi.newDataReceivedStream) {
+        if (data.requestId == requestId) {
+          final error = data.error;
+          final bytes = data.data;
+          if (error != null) {
+            yield* Stream.error(UriContentError(error));
+            break;
+          }
+          if (bytes != null) {
+            yield bytes;
+          } else {
+            break; // EOF
+          }
         }
       }
     }
+
+    final controller = StreamController<Uint8List>(
+      onListen: () {
+        _uriContentApi.getContentFromUri(
+          _uriSerializer(uri),
+          requestId,
+          bufferSize,
+        );
+      },
+      onCancel: () {
+        _uriContentApi.cancelRequest(requestId);
+      },
+    );
+
+    controller.addStream(currentRequestBytesStream()).then((_) {
+      controller.close();
+    });
+
+    yield* controller.stream;
   }
 
   Stream<Uint8List> _fromUnknownUri(Uri uri) async* {
@@ -183,5 +198,35 @@ class UriContent {
     }
 
     return _fromUnknownUri(uri);
+  }
+
+  /// [canFetchContent] checks if it is possible to fetch the content from the specified Uri.
+  /// If it is a file, it checks if it exists.
+  /// If it is a http/https Uri, it checks if it is reachable.
+  Future<bool> canFetchContent(Uri uri) {
+    if (uri.scheme == UriScheme.data) {
+      return SynchronousFuture(uri.data != null);
+    }
+
+    if (uri.scheme == UriScheme.file) {
+      return File.fromUri(uri).exists();
+    }
+
+    if (uri.scheme == UriScheme.http || uri.scheme == UriScheme.https) {
+      return _httpClient.headUrl(uri).then((request) async {
+        final response = await request.close();
+        return response.statusCode == HttpStatus.ok;
+      });
+    }
+
+    if (uri.scheme == UriScheme.content) {
+      if (_platform.isAndroid) {
+        return _uriContentApi.doesFileExist(_uriSerializer(uri));
+      } else {
+        return SynchronousFuture(false);
+      }
+    }
+
+    return SynchronousFuture(false);
   }
 }

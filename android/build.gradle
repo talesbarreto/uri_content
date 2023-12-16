@@ -43,4 +43,8 @@ android {
     defaultConfig {
         minSdkVersion 16
     }
+
+    dependencies {
+        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1'
+    }
 }
