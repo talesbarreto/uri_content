@@ -5,7 +5,6 @@ import 'package:uri_content/src/uri_content_schema_handler/uri_schema_handler.da
 
 import '../../uri_content.dart';
 import '../platform_api/uri_content_flutter_api_impl.dart';
-import '../model/uri_content_exception.dart';
 
 class AndroidContentUriHandler implements UriSchemaHandler {
   final UriContentApi uriContentApi;
