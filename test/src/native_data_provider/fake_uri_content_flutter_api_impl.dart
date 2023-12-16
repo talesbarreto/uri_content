@@ -15,6 +15,7 @@ class FakeUriContentApi extends Fake implements UriContentApi {
   FakeUriContentApi({this.newDataReceivedStream = const Stream.empty()});
 
   final requestedUris = <String>[];
+
   @override
   Future<void> getContentFromUri(
     String url,
@@ -24,4 +25,7 @@ class FakeUriContentApi extends Fake implements UriContentApi {
     requestedUris.add(url);
     return SynchronousFuture(null);
   }
+
+  @override
+  Future<void> cancelRequest(int requestId) => SynchronousFuture(null);
 }
