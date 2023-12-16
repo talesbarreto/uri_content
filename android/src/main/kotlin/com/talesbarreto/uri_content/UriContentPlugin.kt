@@ -99,7 +99,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeA
         }
     }
 
-    override fun onRequestCancelled(requestId: Long) {
+    override fun cancelRequest(requestId: Long) {
         activeRequests.remove(requestId)
     }
 

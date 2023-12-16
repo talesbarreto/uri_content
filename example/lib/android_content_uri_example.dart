@@ -59,15 +59,14 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
                 future: widget.uriContent.from(photos[index]),
                 builder: (context, snapshot) {
                   final image = snapshot.data;
-                  if (image == null) {
-                    return const CircularProgressIndicator();
-                  }
 
                   return Container(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.black),
                     ),
-                    child: Image.memory(image),
+                    child: image == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : Image.memory(image),
                   );
                 },
               );

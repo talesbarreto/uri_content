@@ -68,7 +68,7 @@ public class Api {
 
     void getContentFromUri(@NonNull String url, @NonNull Long requestId, @NonNull Long bufferSize);
 
-    void onRequestCancelled(@NonNull Long requestId);
+    void cancelRequest(@NonNull Long requestId);
 
     void doesFileExist(@NonNull String url, @NonNull Result<Boolean> result);
 
@@ -107,7 +107,7 @@ public class Api {
       {
         BasicMessageChannel<Object> channel =
             new BasicMessageChannel<>(
-                binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentNativeApi.onRequestCancelled", getCodec());
+                binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentNativeApi.cancelRequest", getCodec());
         if (api != null) {
           channel.setMessageHandler(
               (message, reply) -> {
@@ -115,7 +115,7 @@ public class Api {
                 ArrayList<Object> args = (ArrayList<Object>) message;
                 Number requestIdArg = (Number) args.get(0);
                 try {
-                  api.onRequestCancelled((requestIdArg == null) ? null : requestIdArg.longValue());
+                  api.cancelRequest((requestIdArg == null) ? null : requestIdArg.longValue());
                   wrapped.add(0, null);
                 }
  catch (Throwable exception) {

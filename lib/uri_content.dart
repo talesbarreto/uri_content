@@ -110,7 +110,7 @@ class UriContent {
         );
       },
       onCancel: () {
-        _uriContentApi.onRequestCancelled(requestId);
+        _uriContentApi.cancelRequest(requestId);
       },
     );
 

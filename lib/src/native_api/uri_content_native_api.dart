@@ -43,9 +43,9 @@ class UriContentNativeApi {
     }
   }
 
-  Future<void> onRequestCancelled(int arg_requestId) async {
+  Future<void> cancelRequest(int arg_requestId) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.uri_content.UriContentNativeApi.onRequestCancelled',
+        'dev.flutter.pigeon.uri_content.UriContentNativeApi.cancelRequest',
         codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
