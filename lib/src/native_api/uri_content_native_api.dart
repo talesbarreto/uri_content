@@ -18,12 +18,15 @@ class UriContentNativeApi {
 
   static const MessageCodec<Object?> codec = StandardMessageCodec();
 
-  Future<void> getContentFromUri(String arg_url, int arg_requestId, int arg_bufferSize) async {
+  Future<void> getContentFromUri(
+      String arg_url, int arg_requestId, int arg_bufferSize) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.uri_content.UriContentNativeApi.getContentFromUri', codec,
+        'dev.flutter.pigeon.uri_content.UriContentNativeApi.getContentFromUri',
+        codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_url, arg_requestId, arg_bufferSize]) as List<Object?>?;
+        await channel.send(<Object?>[arg_url, arg_requestId, arg_bufferSize])
+            as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -42,7 +45,8 @@ class UriContentNativeApi {
 
   Future<void> onRequestCancelled(int arg_requestId) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.uri_content.UriContentNativeApi.onRequestCancelled', codec,
+        'dev.flutter.pigeon.uri_content.UriContentNativeApi.onRequestCancelled',
+        codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_requestId]) as List<Object?>?;
@@ -64,7 +68,8 @@ class UriContentNativeApi {
 
   Future<bool> doesFileExist(String arg_url) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.uri_content.UriContentNativeApi.doesFileExist', codec,
+        'dev.flutter.pigeon.uri_content.UriContentNativeApi.doesFileExist',
+        codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_url]) as List<Object?>?;
@@ -95,17 +100,19 @@ abstract class UriContentFlutterApi {
 
   void onDataReceived(int requestId, Uint8List? data, String? error);
 
-  static void setup(UriContentFlutterApi? api, {BinaryMessenger? binaryMessenger}) {
+  static void setup(UriContentFlutterApi? api,
+      {BinaryMessenger? binaryMessenger}) {
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived', codec,
+          'dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived',
+          codec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMessageHandler(null);
       } else {
         channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived was null.');
+              'Argument for dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final int? arg_requestId = (args[0] as int?);
           assert(arg_requestId != null,

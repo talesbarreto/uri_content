@@ -103,7 +103,11 @@ class UriContent {
 
     final controller = StreamController<Uint8List>(
       onListen: () {
-        _uriContentApi.getContentFromUri(_uriSerializer(uri), requestId, bufferSize);
+        _uriContentApi.getContentFromUri(
+          _uriSerializer(uri),
+          requestId,
+          bufferSize,
+        );
       },
       onCancel: () {
         _uriContentApi.onRequestCancelled(requestId);

@@ -7,10 +7,15 @@ class AndroidContentUriExample extends StatefulWidget {
   final UriContent uriContent;
   final AndroidPhotosFetcher androidPhotosFetcher;
 
-  const AndroidContentUriExample({super.key, required this.androidPhotosFetcher, required this.uriContent});
+  const AndroidContentUriExample({
+    super.key,
+    required this.androidPhotosFetcher,
+    required this.uriContent,
+  });
 
   @override
-  State<AndroidContentUriExample> createState() => _AndroidContentUriExampleState();
+  State<AndroidContentUriExample> createState() =>
+      _AndroidContentUriExampleState();
 
   static Future<bool> _requestPermission() async {
     final result = await Permission.photos.request();
