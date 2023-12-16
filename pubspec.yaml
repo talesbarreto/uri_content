@@ -3,13 +3,13 @@ description: Get the Uint8List content of a given Uri. Supports file, data, cont
 version: 1.2.0
 homepage: https://github.com/talesbarreto/uri_content
 topics:
- - uri
- - download
- - content
- - uint8list
+  - uri
+  - download
+  - content
+  - uint8list
 
 environment:
-  sdk: '>=2.17.0 <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
   flutter: ">=2.5.0"
 
 dependencies:
@@ -20,9 +20,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.1
-  pigeon: ^10.0.0
+  pigeon: ^15.0.2
   plugin_platform_interface: ^2.1.4
+  mocktail: ^1.0.2
   pull_request_coverage: ^1.3.5
+  lints: ^2.1.1
 
 flutter:
   plugin:

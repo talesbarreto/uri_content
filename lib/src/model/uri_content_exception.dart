@@ -8,6 +8,9 @@ class UriContentError implements Exception {
 
   static const contentOnlySupportedByAndroid =
       UriContentError("`content` scheme is only supported on Android.");
+
+  @override
+  String toString() => error;
 }
 
 class UnsupportedSchemeError implements UriContentError {
