@@ -58,6 +58,16 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
               return FutureBuilder(
                 future: widget.uriContent.from(photos[index]),
                 builder: (context, snapshot) {
+                  final error = snapshot.error;
+
+                  if (error != null) {
+                    return Center(
+                      child: Text(
+                        error.toString(),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
                   final image = snapshot.data;
 
                   return Container(

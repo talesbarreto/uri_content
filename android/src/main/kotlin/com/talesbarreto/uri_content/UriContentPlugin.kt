@@ -2,12 +2,10 @@ package com.talesbarreto.uri_content
 
 import android.content.ContentResolver
 import android.net.Uri
-import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.MethodChannel.Result
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,27 +14,37 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.InputStream
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.Boolean
+import kotlin.ByteArray
+import kotlin.Exception
+import kotlin.Int
+import kotlin.Long
+import kotlin.Result
+import kotlin.String
+import kotlin.Unit
+import kotlin.also
 import kotlin.coroutines.CoroutineContext
+import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 
 /** UriContentPlugin */
-class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeApi,
+class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi,
     CoroutineScope {
 
     override val coroutineContext: CoroutineContext = Job() + Dispatchers.IO
     private lateinit var channel: MethodChannel
     private var contentResolver: ContentResolver? = null
-    private var flutterApi: Api.UriContentFlutterApi? = null
+    private var flutterApi: UriContentFlutterApi? = null
     private val activeRequests = CopyOnWriteArrayList<Long>()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "uri_content")
         channel.setMethodCallHandler(this)
         contentResolver = flutterPluginBinding.applicationContext.contentResolver
-        flutterApi = Api.UriContentFlutterApi(flutterPluginBinding.binaryMessenger)
-        Api.UriContentNativeApi.setup(flutterPluginBinding.binaryMessenger, this)
+        flutterApi = UriContentFlutterApi(flutterPluginBinding.binaryMessenger)
+        UriContentPlatformApi.setUp(flutterPluginBinding.binaryMessenger, this)
     }
 
-    override fun onMethodCall(call: MethodCall, result: Result) {
+    override fun onMethodCall(call: MethodCall, result: MethodChannelResult) {
         if (call.method == "getPlatformVersion") {
             result.success("Android ${android.os.Build.VERSION.RELEASE}")
         } else {
@@ -53,7 +61,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeA
         val contentResolver = contentResolver
 
         if (contentResolver == null) {
-            flutterApi.onDataReceived(requestId, null, "ContentResolver is null") { }
+            flutterApi.onDataReceived(requestId, null, "ContentResolver is null") {}
             return
         }
         activeRequests.add(requestId)
@@ -103,13 +111,13 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeA
         activeRequests.remove(requestId)
     }
 
-    override fun doesFileExist(url: String, result: Api.Result<Boolean>) {
+    override fun doesFileExist(url: String, callback: (Result<Boolean>) -> Unit) {
         launch {
             val contentResolver = contentResolver
 
             if (contentResolver == null) {
                 withContext(Dispatchers.Main) {
-                    result.error(Exception("ContentResolver is null"))
+                    callback(Result.failure(Exception("ContentResolver is null")))
                 }
                 return@launch
             }
@@ -118,11 +126,11 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, Api.UriContentNativeA
                 val uri = Uri.parse(url)
                 stream = contentResolver.openInputStream(uri)
                 withContext(Dispatchers.Main) {
-                    result.success(true)
+                    callback(Result.success(true))
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    result.success(false)
+                    callback(Result.success(false))
                 }
             } finally {
                 stream?.close()

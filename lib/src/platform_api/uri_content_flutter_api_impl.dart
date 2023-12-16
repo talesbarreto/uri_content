@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:uri_content/src/native_api/uri_content_native_api.dart';
-import 'package:uri_content/src/native_data_provider/uri_content_chunk_data.dart';
+import 'package:uri_content/src/platform_api/uri_content_chunk_data.dart';
+import 'package:uri_content/src/platform_api/uri_content_native_api.dart';
 
-class UriContentApi extends UriContentNativeApi
+class UriContentApi extends UriContentPlatformApi
     implements UriContentFlutterApi {
   static final _instance = UriContentApi._();
 
