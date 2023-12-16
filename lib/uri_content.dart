@@ -200,7 +200,10 @@ class UriContent {
     return _fromUnknownUri(uri);
   }
 
-  Future<bool> doesContentExist(Uri uri) {
+  /// [canFetchContent] checks if it is possible to fetch the content from the specified Uri.
+  /// If it is a file, it checks if it exists.
+  /// If it is a http/https Uri, it checks if it is reachable.
+  Future<bool> canFetchContent(Uri uri) {
     if (uri.scheme == UriScheme.data) {
       return SynchronousFuture(uri.data != null);
     }
