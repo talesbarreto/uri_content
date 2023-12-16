@@ -1,9 +1,10 @@
 ## 2.0.0
 
 * Adding `org.jetbrains.kotlinx:kotlinx-coroutines-android` Android dependency
-* New `doesContentExists` function
+* New `canFetchContent` function
 * Reading `content scheme` is now done in a separate thread, avoiding ANRs.
 * Aborting `content scheme` reading when stream is no longer being listened to.
+* Error handling improvements
 
 ## 1.1.0
 

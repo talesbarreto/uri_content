@@ -51,7 +51,9 @@ class AndroidContentUriHandler implements UriSchemaHandler {
 
   @override
   Stream<Uint8List> getContentStream(
-      Uri uri, UriSchemaHandlerParams params) async* {
+    Uri uri,
+    UriSchemaHandlerParams params,
+  ) async* {
     final requestId = uriContentApi.getNextId();
 
     final controller = StreamController<Uint8List>(
