@@ -29,7 +29,7 @@ void main() {
     when(mockUriContentApi.getNextId).thenReturn(1);
     when(() => mockUriContentApi.cancelRequest(any()))
         .thenAnswer((invocation) => SynchronousFuture(null));
-    when(() => mockUriContentApi.getContentFromUri(any(), any(), any()))
+    when(() => mockUriContentApi.requestContent(any(), any(), any()))
         .thenAnswer((invocation) => SynchronousFuture(null));
     when(() => mockUriContentApi.newDataReceivedStream).thenAnswer(
       (invocation) => Stream.fromIterable([
@@ -98,7 +98,7 @@ void main() {
       await handler
           .getContentStream(uri, const UriSchemaHandlerParams())
           .drain();
-      verify(() => mockUriContentApi.getContentFromUri(any(), any(), any()))
+      verify(() => mockUriContentApi.requestContent(any(), any(), any()))
           .called(1);
     });
 

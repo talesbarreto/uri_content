@@ -58,7 +58,7 @@ class AndroidContentUriHandler implements UriSchemaHandler {
 
     final controller = StreamController<Uint8List>(
       onListen: () {
-        uriContentApi.getContentFromUri(
+        uriContentApi.requestContent(
           uriSerializer(uri),
           requestId,
           params.bufferSize,

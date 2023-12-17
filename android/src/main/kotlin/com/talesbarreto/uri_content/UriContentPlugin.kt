@@ -56,7 +56,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         channel.setMethodCallHandler(null)
     }
 
-    override fun getContentFromUri(url: String, requestId: Long, bufferSize: Long) {
+    override fun requestContent(url: String, requestId: Long, bufferSize: Long) {
         val flutterApi = flutterApi ?: return
         val contentResolver = contentResolver
 

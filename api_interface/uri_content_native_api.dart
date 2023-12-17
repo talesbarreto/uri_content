@@ -10,7 +10,7 @@ import 'package:pigeon/pigeon.dart';
 ))
 @HostApi()
 abstract class UriContentPlatformApi {
-  void getContentFromUri(String url, int requestId, int bufferSize);
+  void requestContent(String url, int requestId, int bufferSize);
 
   void cancelRequest(int requestId);
 

@@ -48,7 +48,7 @@ class FlutterError (
 
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface UriContentPlatformApi {
-  fun getContentFromUri(url: String, requestId: Long, bufferSize: Long)
+  fun requestContent(url: String, requestId: Long, bufferSize: Long)
   fun cancelRequest(requestId: Long)
   fun doesFileExist(url: String, callback: (Result<Boolean>) -> Unit)
 
@@ -61,7 +61,7 @@ interface UriContentPlatformApi {
     @Suppress("UNCHECKED_CAST")
     fun setUp(binaryMessenger: BinaryMessenger, api: UriContentPlatformApi?) {
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.getContentFromUri", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestContent", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -70,7 +70,7 @@ interface UriContentPlatformApi {
             val bufferSizeArg = args[2].let { if (it is Int) it.toLong() else it as Long }
             var wrapped: List<Any?>
             try {
-              api.getContentFromUri(urlArg, requestIdArg, bufferSizeArg)
+              api.requestContent(urlArg, requestIdArg, bufferSizeArg)
               wrapped = listOf<Any?>(null)
             } catch (exception: Throwable) {
               wrapped = wrapError(exception)

@@ -17,7 +17,7 @@ class FakeUriContentApi extends Fake implements UriContentApi {
   final requestedUris = <String>[];
 
   @override
-  Future<void> getContentFromUri(
+  Future<void> requestContent(
     String url,
     int requestId,
     int bufferSize,
