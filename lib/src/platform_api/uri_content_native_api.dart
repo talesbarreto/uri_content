@@ -15,7 +15,8 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse(
+    {Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -33,17 +34,20 @@ class UriContentPlatformApi {
       : __pigeon_binaryMessenger = binaryMessenger;
   final BinaryMessenger? __pigeon_binaryMessenger;
 
-  static const MessageCodec<Object?> pigeonChannelCodec = StandardMessageCodec();
+  static const MessageCodec<Object?> pigeonChannelCodec =
+      StandardMessageCodec();
 
   Future<void> requestContent(String url, int requestId, int bufferSize) async {
-    const String pigeonChannelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestContent';
-    final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
+    const String pigeonChannelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestContent';
+    final BasicMessageChannel<Object?> __pigeon_channel =
+        BasicMessageChannel<Object?>(
       pigeonChannelName,
       pigeonChannelCodec,
       binaryMessenger: __pigeon_binaryMessenger,
     );
-    final List<Object?>? __pigeon_replyList =
-        await __pigeon_channel.send(<Object?>[url, requestId, bufferSize]) as List<Object?>?;
+    final List<Object?>? __pigeon_replyList = await __pigeon_channel
+        .send(<Object?>[url, requestId, bufferSize]) as List<Object?>?;
     if (__pigeon_replyList == null) {
       throw _createConnectionError(pigeonChannelName);
     } else if (__pigeon_replyList.length > 1) {
@@ -58,8 +62,10 @@ class UriContentPlatformApi {
   }
 
   Future<void> cancelRequest(int requestId) async {
-    const String pigeonChannelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.cancelRequest';
-    final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
+    const String pigeonChannelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.cancelRequest';
+    final BasicMessageChannel<Object?> __pigeon_channel =
+        BasicMessageChannel<Object?>(
       pigeonChannelName,
       pigeonChannelCodec,
       binaryMessenger: __pigeon_binaryMessenger,
@@ -80,8 +86,10 @@ class UriContentPlatformApi {
   }
 
   Future<bool> doesFileExist(String url) async {
-    const String pigeonChannelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.doesFileExist';
-    final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
+    const String pigeonChannelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.doesFileExist';
+    final BasicMessageChannel<Object?> __pigeon_channel =
+        BasicMessageChannel<Object?>(
       pigeonChannelName,
       pigeonChannelCodec,
       binaryMessenger: __pigeon_binaryMessenger,
@@ -108,21 +116,25 @@ class UriContentPlatformApi {
 }
 
 abstract class UriContentFlutterApi {
-  static const MessageCodec<Object?> pigeonChannelCodec = StandardMessageCodec();
+  static const MessageCodec<Object?> pigeonChannelCodec =
+      StandardMessageCodec();
 
   void onDataReceived(int requestId, Uint8List? data, String? error);
 
-  static void setup(UriContentFlutterApi? api, {BinaryMessenger? binaryMessenger}) {
+  static void setup(UriContentFlutterApi? api,
+      {BinaryMessenger? binaryMessenger}) {
     {
-      final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived', pigeonChannelCodec,
+      final BasicMessageChannel<Object?> __pigeon_channel = BasicMessageChannel<
+              Object?>(
+          'dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         __pigeon_channel.setMessageHandler(null);
       } else {
         __pigeon_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived was null.');
+              'Argument for dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final int? arg_requestId = (args[0] as int?);
           assert(arg_requestId != null,
@@ -134,8 +146,9 @@ abstract class UriContentFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
