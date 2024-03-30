@@ -76,9 +76,7 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
                     padding: const EdgeInsets.all(8.0),
                     child: Card(
                       child: Container(
-                        constraints: const BoxConstraints(
-                          maxHeight: 300
-                        ),
+                        constraints: const BoxConstraints(maxHeight: 300),
                         child: Column(
                           children: [
                             Text(
