@@ -27,4 +27,9 @@ class FileUriHandler implements UriSchemaHandler {
     final file = File.fromUri(uri);
     return file.openRead().map(Uint8List.fromList);
   }
+
+  @override
+  Future<int?> getContentLength(Uri uri, UriSchemaHandlerParams params) {
+    return File.fromUri(uri).length();
+  }
 }

@@ -1,3 +1,7 @@
+## 2.0.1
+
+* New`getContentLength` function
+
 ## 2.0.0
 
 * Adding `org.jetbrains.kotlinx:kotlinx-coroutines-android` Android dependency

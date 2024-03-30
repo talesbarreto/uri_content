@@ -30,4 +30,9 @@ class FallbackUriHandler implements UriSchemaHandler {
       yield* Stream.error(UnsupportedSchemeError(uri.scheme));
     }
   }
+
+  @override
+  Future<int?> getContentLength(Uri uri, UriSchemaHandlerParams params) {
+    return SynchronousFuture(uri.data?.contentAsBytes().length);
+  }
 }

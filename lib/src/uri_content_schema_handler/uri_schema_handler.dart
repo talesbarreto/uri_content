@@ -12,6 +12,11 @@ abstract interface class UriSchemaHandler {
     Uri uri,
     UriSchemaHandlerParams params,
   );
+
+  Future<int?> getContentLength(
+    Uri uri,
+    UriSchemaHandlerParams params,
+  );
 }
 
 class UriSchemaHandlerParams {

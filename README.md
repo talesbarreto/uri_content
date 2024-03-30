@@ -48,6 +48,7 @@ Future<void> getReadmeLength() async {
  - `Future<Uint8List> from(Uri uri)`: Retrieves the entire content at once. Be cautious as it may crash your app when attempting to retrieve a large file.
  - `Future<Uint8List?> fromOrNull(Uri uri)`: Same as `from`, but returns null instead of throwing an exception when an error happens
  - `Future<bool> canFetchContent(Uri uri)`: Check if the content is reachable and supported.
+ - `Future<int?> getContentLength(Uri uri)`: Retrieves the content length. Returns null if the length is unknown.
 
 
 The function `getContentOrNull()` is also available if you are not interested in handling errors.

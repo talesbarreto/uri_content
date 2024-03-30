@@ -46,6 +46,18 @@ class HttpUriHandler implements UriSchemaHandler {
   }
 
   @override
+  Future<int?> getContentLength(
+    Uri uri,
+    UriSchemaHandlerParams params,
+  ) async {
+    final request = await httpClient.headUrl(uri);
+    _addHeadersToRequest(request, params.httpHeaders);
+    final response = await request.close();
+    final length = response.headers['content-length']?.firstOrNull ?? '';
+    return int.tryParse(length);
+  }
+
+  @override
   Stream<Uint8List> getContentStream(
     Uri uri,
     UriSchemaHandlerParams params,

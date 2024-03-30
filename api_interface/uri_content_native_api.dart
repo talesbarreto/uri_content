@@ -15,6 +15,9 @@ abstract class UriContentPlatformApi {
   void cancelRequest(int requestId);
 
   @async
+  int? getContentLength(String url);
+
+  @async
   bool doesFileExist(String url);
 }
 

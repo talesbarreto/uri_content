@@ -31,4 +31,10 @@ class DataUriHandler implements UriSchemaHandler {
       yield* Stream.error(UriContentError.dataSchemeWithNoData);
     }
   }
+
+  @override
+  Future<int?> getContentLength(Uri uri, UriSchemaHandlerParams params) {
+    final data = uri.data;
+    return SynchronousFuture(data?.contentAsBytes().length);
+  }
 }

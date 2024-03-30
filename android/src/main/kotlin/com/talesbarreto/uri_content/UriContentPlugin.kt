@@ -28,7 +28,7 @@ import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 
 /** UriContentPlugin */
 class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi,
-    CoroutineScope {
+        CoroutineScope {
 
     override val coroutineContext: CoroutineContext = Job() + Dispatchers.IO
     private lateinit var channel: MethodChannel
@@ -110,6 +110,30 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     override fun cancelRequest(requestId: Long) {
         activeRequests.remove(requestId)
     }
+
+    override fun getContentLength(url: String, callback: (Result<Long?>) -> Unit) {
+        val contentResolver = contentResolver
+        if (contentResolver == null) {
+            callback(Result.failure(Exception("ContentResolver is null")))
+            return
+        }
+        launch {
+            try {
+                val uri = Uri.parse(url)
+                val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
+                val contentSize = parcelFileDescriptor?.statSize
+                parcelFileDescriptor?.close()
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(contentSize))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
+        }
+    }
+
 
     override fun doesFileExist(url: String, callback: (Result<Boolean>) -> Unit) {
         launch {
