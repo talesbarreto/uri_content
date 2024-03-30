@@ -43,12 +43,56 @@ Future<void> getReadmeLength() async {
   }
 }
 ```
-### Methods available:
- - `Stream<Uint8List> getContentStream(Uri uri)`: Retrieves a Stream of Uint8List where each event represents a chunk of content from the specified URI. This approach is more suitable when you don't need the entire content at once, such as in a request provider or when directly saving the bytes into a File. Handling small chunks significantly reduces memory consumption.
- - `Future<Uint8List> from(Uri uri)`: Retrieves the entire content at once. Be cautious as it may crash your app when attempting to retrieve a large file.
- - `Future<Uint8List?> fromOrNull(Uri uri)`: Same as `from`, but returns null instead of throwing an exception when an error happens
- - `Future<bool> canFetchContent(Uri uri)`: Check if the content is reachable and supported.
- - `Future<int?> getContentLength(Uri uri)`: Retrieves the content length. Returns null if the length is unknown.
+### Methods
 
+```dart
+final uriContent = UriContent();
+```
 
-The function `getContentOrNull()` is also available if you are not interested in handling errors.
+#### getContentStream()
+
+This method retrieves a Stream of Uint8List where each event represents a chunk of content from the specified URI. This approach is more suitable when you don't need the entire content at once, such as in a request provider or when directly saving the bytes into a File. Handling small chunks significantly reduces memory consumption.
+
+```dart
+Stream<Uint8List> contentStream = uriContent.getContentStream(uri);
+```
+
+#### from()
+
+This method retrieves the entire content at once. Be cautious as it may crash your app when attempting to retrieve a large file.
+
+```dart
+Future<Uint8List> content = uriContent.from(uri);
+```
+
+#### fromOrNull()
+
+Same as `from`, but returns null instead of throwing an exception when an error happens.
+
+```dart
+Future<Uint8List?> content = uriContent.fromOrNull(uri);
+```
+
+#### canFetchContent()
+
+This method checks if it is possible to fetch the content from the specified Uri. If it is a file, it checks if it exists. If it is a http/https Uri, it checks if it is reachable.
+
+```dart
+Future<bool> canFetch = uriContent.canFetchContent(uri);
+```
+
+#### getContentLength()
+
+This method retrieves the content length. Returns null if the length is unknown.
+
+```dart
+Future<int?> contentLength = uriContent.getContentLength(uri);
+```
+
+#### getContentLengthOrNull()
+
+Same as `getContentLength`, but return `null` on errors. Note that 'null' is ambiguous, it may mean that the content is not reachable or the content length is not available, so it is recommended to use `canFetchContent` to check if the content is reachable.
+
+```dart
+Future<int?> contentLength = uriContent.getContentLengthOrNull(uri);
+```
