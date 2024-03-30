@@ -75,4 +75,9 @@ class AndroidContentUriHandler implements UriSchemaHandler {
 
     yield* controller.stream;
   }
+
+  @override
+  Future<int?> getContentLength(Uri uri, UriSchemaHandlerParams params) {
+    return uriContentApi.getContentLength(uriSerializer(uri));
+  }
 }

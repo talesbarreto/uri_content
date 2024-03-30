@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uri_content/uri_content.dart';
@@ -39,6 +41,17 @@ class AndroidContentUriExample extends StatefulWidget {
 class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
   late final photosFuture = widget.androidPhotosFetcher.getPhotos();
 
+  Future<(int? size, Uint8List data)> _getData(Uri uri) async {
+    return Future.wait([
+      widget.uriContent.getContentLength(uri),
+      widget.uriContent.from(uri),
+    ]).then((value) {
+      final size = value[0] as int?;
+      final data = value[1] as Uint8List;
+      return (size, data);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,34 +62,39 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
           if (photos == null) {
             return const CircularProgressIndicator();
           }
-          return GridView.builder(
-            itemCount: photos.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-            ),
+
+          return ListView.builder(
             itemBuilder: (BuildContext context, int index) {
               return FutureBuilder(
-                future: widget.uriContent.from(photos[index]),
-                builder: (context, snapshot) {
-                  final error = snapshot.error;
+                future: _getData(photos[index]),
+                builder: (BuildContext context,
+                    AsyncSnapshot<(int? size, Uint8List data)> snapshot) {
+                  final size = snapshot.data?.$1;
+                  final data = snapshot.data?.$2;
 
-                  if (error != null) {
-                    return Center(
-                      child: Text(
-                        error.toString(),
-                        textAlign: TextAlign.center,
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Card(
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 300),
+                        child: Column(
+                          children: [
+                            Text(
+                              size == null
+                                  ? 'Unknown size'
+                                  : '${size ~/ 1024} KB',
+                            ),
+                            data == null
+                                ? const CircularProgressIndicator()
+                                : Flexible(
+                                    child: Image.memory(
+                                      data,
+                                    ),
+                                  ),
+                          ],
+                        ),
                       ),
-                    );
-                  }
-                  final image = snapshot.data;
-
-                  return Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black),
                     ),
-                    child: image == null
-                        ? const Center(child: CircularProgressIndicator())
-                        : Image.memory(image),
                   );
                 },
               );

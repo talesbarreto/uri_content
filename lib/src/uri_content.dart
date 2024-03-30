@@ -72,7 +72,7 @@ class UriContent {
     );
   }
 
-  /// same as [getContentStream] but return `null` on errors.
+  /// same as [getContentStream] but returns `null` on errors.
   Future<Uint8List?> fromOrNull(
     Uri uri, {
     Map<String, Object> httpHeaders = const {},
@@ -131,5 +131,38 @@ class UriContent {
       httpHeaders: httpHeaders,
     );
     return handler.canFetchContent(uri, params);
+  }
+
+  /// [getContentLength] returns the content length of the specified Uri.
+  /// It relies on metadata to get the content length, so it may NOT be accurate.
+  ///
+  /// It may throw an exception if the content is not reachable.
+  /// If the content length is not available, it returns `null`.
+  /// Use [getContentLengthOrNull] if you don't want to handle exceptions.
+  Future<int?> getContentLength(
+    Uri uri, {
+    Map<String, Object> httpHeaders = const {},
+  }) {
+    final handler = _getUriSchemaHandler(uri);
+
+    final params = UriSchemaHandlerParams(
+      httpHeaders: httpHeaders,
+    );
+    return handler.getContentLength(uri, params);
+  }
+
+  /// same as [getContentLength] but return `null` on errors.
+  /// Note that 'null' is ambiguous, it may mean that the content is not reachable or the content length is not available,
+  /// so it is recommended to use [canFetchContent] to check if the content is reachable.
+  Future<int?> getContentLengthOrNull(
+    Uri uri, {
+    Map<String, Object> httpHeaders = const {},
+  }) async {
+    try {
+      final result = await getContentLength(uri, httpHeaders: httpHeaders);
+      return result;
+    } catch (e) {
+      return null;
+    }
   }
 }
