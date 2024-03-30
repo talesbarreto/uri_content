@@ -1,4 +1,7 @@
-## 2.0.1
+## 2.1.1
+* Fixing docs
+
+## 2.1.0
 
 * New`getContentLength` function
 

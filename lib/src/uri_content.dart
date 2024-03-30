@@ -133,11 +133,13 @@ class UriContent {
     return handler.canFetchContent(uri, params);
   }
 
-  /// [getContentLength] returns the content length of the specified Uri.
+  /// [getContentLength] returns the content length in bytes of the specified Uri.
   /// It relies on metadata to get the content length, so it may NOT be accurate.
   ///
   /// It may throw an exception if the content is not reachable.
+  ///
   /// If the content length is not available, it returns `null`.
+  ///
   /// Use [getContentLengthOrNull] if you don't want to handle exceptions.
   Future<int?> getContentLength(
     Uri uri, {
@@ -151,9 +153,10 @@ class UriContent {
     return handler.getContentLength(uri, params);
   }
 
-  /// same as [getContentLength] but return `null` on errors.
-  /// Note that 'null' is ambiguous, it may mean that the content is not reachable or the content length is not available,
-  /// so it is recommended to use [canFetchContent] to check if the content is reachable.
+  /// Similar to [getContentLength] but return `null` on errors.
+  ///
+  /// Note that `null` is ambiguous; it may indicate that the content is not reachable or the content length is unavailable.
+  /// Hence, it is recommended to use [getContentLength] and handle its exceptions.
   Future<int?> getContentLengthOrNull(
     Uri uri, {
     Map<String, Object> httpHeaders = const {},
