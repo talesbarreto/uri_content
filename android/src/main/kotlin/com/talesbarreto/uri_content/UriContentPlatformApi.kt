@@ -31,9 +31,6 @@ private fun wrapError(exception: Throwable): List<Any?> {
   }
 }
 
-private fun createConnectionError(channelName: String): FlutterError {
-  return FlutterError("channel-error",  "Unable to establish connection on channel: '$channelName'.", "")}
-
 /**
  * Error class for passing custom error details to Flutter via a thrown PlatformException.
  * @property code The error code.
@@ -46,37 +43,106 @@ class FlutterError (
   val details: Any? = null
 ) : Throwable()
 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class UriContentChunkResult (
+  val chunk: ByteArray? = null,
+  val done: Boolean,
+  val error: String? = null
+
+) {
+  companion object {
+    @Suppress("UNCHECKED_CAST")
+    fun fromList(list: List<Any?>): UriContentChunkResult {
+      val chunk = list[0] as ByteArray?
+      val done = list[1] as Boolean
+      val error = list[2] as String?
+      return UriContentChunkResult(chunk, done, error)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf<Any?>(
+      chunk,
+      done,
+      error,
+    )
+  }
+}
+
+@Suppress("UNCHECKED_CAST")
+private object UriContentPlatformApiCodec : StandardMessageCodec() {
+  override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
+    return when (type) {
+      128.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          UriContentChunkResult.fromList(it)
+        }
+      }
+      else -> super.readValueOfType(type, buffer)
+    }
+  }
+  override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
+    when (value) {
+      is UriContentChunkResult -> {
+        stream.write(128)
+        writeValue(stream, value.toList())
+      }
+      else -> super.writeValue(stream, value)
+    }
+  }
+}
+
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface UriContentPlatformApi {
-  fun requestContent(url: String, requestId: Long, bufferSize: Long)
+  fun startRequest(url: String, requestId: Long, bufferSize: Long, callback: (Result<Unit>) -> Unit)
+  fun requestNextChunk(requestId: Long, callback: (Result<UriContentChunkResult>) -> Unit)
   fun cancelRequest(requestId: Long)
   fun getContentLength(url: String, callback: (Result<Long?>) -> Unit)
-  fun doesFileExist(url: String, callback: (Result<Boolean>) -> Unit)
+  fun exists(url: String, callback: (Result<Boolean>) -> Unit)
 
   companion object {
     /** The codec used by UriContentPlatformApi. */
     val codec: MessageCodec<Any?> by lazy {
-      StandardMessageCodec()
+      UriContentPlatformApiCodec
     }
     /** Sets up an instance of `UriContentPlatformApi` to handle messages through the `binaryMessenger`. */
     @Suppress("UNCHECKED_CAST")
     fun setUp(binaryMessenger: BinaryMessenger, api: UriContentPlatformApi?) {
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestContent", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.startRequest", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val urlArg = args[0] as String
             val requestIdArg = args[1].let { if (it is Int) it.toLong() else it as Long }
             val bufferSizeArg = args[2].let { if (it is Int) it.toLong() else it as Long }
-            var wrapped: List<Any?>
-            try {
-              api.requestContent(urlArg, requestIdArg, bufferSizeArg)
-              wrapped = listOf<Any?>(null)
-            } catch (exception: Throwable) {
-              wrapped = wrapError(exception)
+            api.startRequest(urlArg, requestIdArg, bufferSizeArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
             }
-            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestNextChunk", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestIdArg = args[0].let { if (it is Int) it.toLong() else it as Long }
+            api.requestNextChunk(requestIdArg) { result: Result<UriContentChunkResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)
@@ -122,12 +188,12 @@ interface UriContentPlatformApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.doesFileExist", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.uri_content.UriContentPlatformApi.exists", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val urlArg = args[0] as String
-            api.doesFileExist(urlArg) { result: Result<Boolean> ->
+            api.exists(urlArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
@@ -141,31 +207,6 @@ interface UriContentPlatformApi {
           channel.setMessageHandler(null)
         }
       }
-    }
-  }
-}
-/** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
-@Suppress("UNCHECKED_CAST")
-class UriContentFlutterApi(private val binaryMessenger: BinaryMessenger) {
-  companion object {
-    /** The codec used by UriContentFlutterApi. */
-    val codec: MessageCodec<Any?> by lazy {
-      StandardMessageCodec()
-    }
-  }
-  fun onDataReceived(requestIdArg: Long, dataArg: ByteArray?, errorArg: String?, callback: (Result<Unit>) -> Unit) {
-    val channelName = "dev.flutter.pigeon.uri_content.UriContentFlutterApi.onDataReceived"
-    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(requestIdArg, dataArg, errorArg)) {
-      if (it is List<*>) {
-        if (it.size > 1) {
-          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
-        } else {
-          callback(Result.success(Unit))
-        }
-      } else {
-        callback(Result.failure(createConnectionError(channelName)))
-      } 
     }
   }
 }

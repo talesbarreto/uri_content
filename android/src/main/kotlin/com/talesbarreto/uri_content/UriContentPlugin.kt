@@ -2,6 +2,8 @@ package com.talesbarreto.uri_content
 
 import android.content.ContentResolver
 import android.net.Uri
+import com.talesbarreto.uri_content.extension.tryUnlock
+import com.talesbarreto.uri_content.model.UriContentRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -10,19 +12,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.InputStream
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.Boolean
-import kotlin.ByteArray
-import kotlin.Exception
-import kotlin.Int
-import kotlin.Long
 import kotlin.Result
-import kotlin.String
-import kotlin.Unit
-import kotlin.also
 import kotlin.coroutines.CoroutineContext
 import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 
@@ -30,17 +25,43 @@ import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi,
         CoroutineScope {
 
-    override val coroutineContext: CoroutineContext = Job() + Dispatchers.IO
+    override val coroutineContext: CoroutineContext = Job() + Dispatchers.Main
     private lateinit var channel: MethodChannel
     private var contentResolver: ContentResolver? = null
-    private var flutterApi: UriContentFlutterApi? = null
-    private val activeRequests = CopyOnWriteArrayList<Long>()
+    private val activeRequests = HashMap<Long, UriContentRequest>()
+    private val activeRequestsLock = Mutex()
+
+    private suspend fun getRequest(requestId: Long): UriContentRequest? {
+        return activeRequestsLock.withLock {
+            activeRequests[requestId]
+        }
+    }
+
+    private suspend fun setRequest(requestId: Long, request: UriContentRequest) {
+        activeRequestsLock.withLock {
+            activeRequests[requestId] = request
+        }
+    }
+
+    private suspend fun deleteRequest(requestId: Long): UriContentRequest? {
+        return activeRequestsLock.withLock {
+            activeRequests.remove(requestId)
+        }
+    }
+
+    private suspend fun updateRequest(requestId: Long, update: UriContentRequest.() -> UriContentRequest) {
+        activeRequestsLock.withLock {
+            activeRequests[requestId]?.let {
+                activeRequests[requestId] = update(it)
+
+            }
+        }
+    }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "uri_content")
         channel.setMethodCallHandler(this)
         contentResolver = flutterPluginBinding.applicationContext.contentResolver
-        flutterApi = UriContentFlutterApi(flutterPluginBinding.binaryMessenger)
         UriContentPlatformApi.setUp(flutterPluginBinding.binaryMessenger, this)
     }
 
@@ -56,59 +77,108 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         channel.setMethodCallHandler(null)
     }
 
-    override fun requestContent(url: String, requestId: Long, bufferSize: Long) {
-        val flutterApi = flutterApi ?: return
-        val contentResolver = contentResolver
+    private suspend fun requestContent(url: String, requestId: Long, bufferSize: Long) {
+        val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
 
-        if (contentResolver == null) {
-            flutterApi.onDataReceived(requestId, null, "ContentResolver is null") {}
-            return
-        }
-        activeRequests.add(requestId)
+        var inputStream: InputStream? = null
+        var bufferedInputStream: BufferedInputStream? = null
+        try {
+            val uri = Uri.parse(url)
 
-        launch {
-            var inputStream: InputStream? = null
-            var bufferedInputStream: BufferedInputStream? = null
-            try {
-                val uri = Uri.parse(url)
+            inputStream = contentResolver.openInputStream(uri)
 
-                inputStream = contentResolver.openInputStream(uri)
+            bufferedInputStream = BufferedInputStream(inputStream, bufferSize.toInt())
 
-                bufferedInputStream = BufferedInputStream(inputStream, bufferSize.toInt())
+            val buffer = ByteArray(bufferSize.toInt())
 
-                var bytesRead: Int
-                val buffer = ByteArray(bufferSize.toInt())
-                while (bufferedInputStream.read(buffer).also { bytesRead = it } != -1) {
-                    if (requestId !in activeRequests) {
-                        withContext(Dispatchers.Main) {
-                            flutterApi.onDataReceived(requestId, null, "request cancelled") { }
-                        }
-                        return@launch
+            val requestLock = getRequest(requestId)?.requestLock ?: return
+            do {
+                requestLock.lock()
+                val request = getRequest(requestId) ?: break
+
+                val bytesRead = withContext(Dispatchers.IO) {
+                    bufferedInputStream.read(buffer)
+                }
+
+                if (bytesRead == -1) {
+                    updateRequest(requestId) {
+                        copy(readChunk = null, done = true)
                     }
-                    val data = buffer.sliceArray(0 until bytesRead)
-                    withContext(Dispatchers.Main) {
-                        flutterApi.onDataReceived(requestId, data, null) { }
-                    }
-                }
-                // dataArg null means we reached EOF and stream can be closed
-                withContext(Dispatchers.Main) {
-                    flutterApi.onDataReceived(requestId, null, null) { }
+                    request.readingDataLock.tryUnlock()
+                    return
                 }
 
-            } catch (exception: Exception) {
-                withContext(Dispatchers.Main) {
-                    flutterApi.onDataReceived(requestId, null, exception.toString()) { }
+                val data = buffer.sliceArray(0 until bytesRead)
+                updateRequest(requestId) {
+                    copy(readChunk = data)
                 }
-            } finally {
-                activeRequests.remove(requestId)
+
+                request.readingDataLock.tryUnlock()
+            } while (true)
+
+        } catch (exception: Exception) {
+            updateRequest(requestId) {
+                copy(readChunk = null, error = exception.toString())
+            }
+        } finally {
+            withContext(Dispatchers.IO) {
                 inputStream?.close()
                 bufferedInputStream?.close()
             }
         }
     }
 
+    override fun startRequest(url: String, requestId: Long, bufferSize: Long, callback: (Result<Unit>) -> Unit) {
+        launch {
+            try {
+                if (!activeRequests.contains(requestId)) {
+                    setRequest(requestId, UriContentRequest(bufferSize))
+                    callback(Result.success(Unit))
+                    requestContent(url, requestId, bufferSize)
+                } else {
+                    callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
+                }
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun requestNextChunk(requestId: Long, callback: (Result<UriContentChunkResult>) -> Unit) {
+        launch(Dispatchers.Main) {
+            val result: Result<UriContentChunkResult>
+            val request = getRequest(requestId)
+            if (request == null) {
+                callback(Result.failure(Exception("Request not found")))
+                return@launch
+            }
+            request.readingDataLock.lock()
+            request.requestLock.tryUnlock()
+            request.readingDataLock.withLock {
+                val requestResult = getRequest(requestId)
+                if (requestResult == null) {
+                    result = Result.failure(Exception("Request not found"))
+                } else if (requestResult.done) {
+                    result = Result.success(UriContentChunkResult(null, true))
+                    cancelRequest(requestId)
+                } else if (requestResult.error != null) {
+                    result = Result.success(UriContentChunkResult(null, false, error = requestResult.error))
+                    cancelRequest(requestId)
+                } else {
+                    val data = requestResult.readChunk
+                    result = Result.success(UriContentChunkResult(data, false))
+                }
+            }
+            callback(result)
+        }
+    }
+
     override fun cancelRequest(requestId: Long) {
-        activeRequests.remove(requestId)
+        launch {
+            val request = deleteRequest(requestId)
+            request?.requestLock?.tryUnlock()
+            request?.readingDataLock?.tryUnlock()
+        }
     }
 
     override fun getContentLength(url: String, callback: (Result<Long?>) -> Unit) {
@@ -134,8 +204,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         }
     }
 
-
-    override fun doesFileExist(url: String, callback: (Result<Boolean>) -> Unit) {
+    override fun exists(url: String, callback: (Result<Boolean>) -> Unit) {
         launch {
             val contentResolver = contentResolver
 
@@ -157,7 +226,9 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     callback(Result.success(false))
                 }
             } finally {
-                stream?.close()
+                withContext(Dispatchers.IO) {
+                    stream?.close()
+                }
             }
         }
     }
