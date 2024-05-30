@@ -1,5 +1,4 @@
-`uri_content` enables you to fetch the content of a URI without generating any temporary files during the process. 
-You need not worry about any residual garbage being left behind.
+`uri_content` enables you to fetch the content of a URI without generating any temporary files during the process.
 
 It supports the following schemes: `file`, `data`, `http/https`, `content` (Android only)
 

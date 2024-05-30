@@ -1,3 +1,6 @@
+## 2.2.0-rc.1
+* Avoiding excessive memory usage when reading content from `content scheme` by only reading new data chunk when the previous one has been consumed.
+
 ## 2.1.1
 * Fixing docs
 
