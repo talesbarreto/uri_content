@@ -1,6 +1,6 @@
 name: uri_content
 description: Get the Uint8List content of a given Uri. Supports file, data, content and http/https
-version: 2.1.1
+version: 2.2.0-rc.1
 homepage: https://github.com/talesbarreto/uri_content
 topics:
   - uri
