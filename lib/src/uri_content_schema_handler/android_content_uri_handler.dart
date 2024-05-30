@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:uri_content/src/platform_api/uri_content_flutter_api_impl.dart';
+import 'package:uri_content/src/platform_api/uri_content_native_api.dart';
 import 'package:uri_content/src/uri_content_schema_handler/uri_schema_handler.dart';
 
 import '../../uri_content.dart';
-import '../platform_api/uri_content_flutter_api_impl.dart';
 
 class AndroidContentUriHandler implements UriSchemaHandler {
   final UriContentApi uriContentApi;
@@ -20,7 +21,7 @@ class AndroidContentUriHandler implements UriSchemaHandler {
   @override
   Future<bool> canFetchContent(Uri uri, UriSchemaHandlerParams params) {
     if (targetPlatform == TargetPlatform.android) {
-      return uriContentApi.doesFileExist(uriSerializer(uri));
+      return uriContentApi.exists(uriSerializer(uri));
     } else {
       return SynchronousFuture(false);
     }
@@ -31,20 +32,28 @@ class AndroidContentUriHandler implements UriSchemaHandler {
     return uri.scheme == "content" && targetPlatform == TargetPlatform.android;
   }
 
-  Stream<Uint8List> _currentRequestBytesStream(int requestId) async* {
-    await for (final data in uriContentApi.newDataReceivedStream) {
-      if (data.requestId == requestId) {
-        final error = data.error;
-        final bytes = data.data;
-        if (error != null) {
-          yield* Stream.error(UriContentError(error));
-          break;
-        }
-        if (bytes != null) {
-          yield bytes;
-        } else {
-          break; // EOF
-        }
+  Stream<Uint8List> _nativeDataStream(
+    String uri,
+    int requestId,
+    int bufferSize,
+  ) async* {
+    await uriContentApi.startRequest(uri, requestId, bufferSize);
+
+    while (true) {
+      final UriContentChunkResult result;
+      try {
+        result = await uriContentApi.requestNextChunk(requestId);
+      } catch (e) {
+        yield* Stream.error(UriContentError(e.toString()));
+        return;
+      }
+      if (result.error != null) {
+        yield* Stream.error(UriContentError(result.error!));
+        break;
+      } else if (result.done) {
+        break;
+      } else if (result.chunk != null) {
+        yield result.chunk!;
       }
     }
   }
@@ -57,19 +66,18 @@ class AndroidContentUriHandler implements UriSchemaHandler {
     final requestId = uriContentApi.getNextId();
 
     final controller = StreamController<Uint8List>(
-      onListen: () {
-        uriContentApi.requestContent(
-          uriSerializer(uri),
-          requestId,
-          params.bufferSize,
-        );
-      },
       onCancel: () {
         uriContentApi.cancelRequest(requestId);
       },
     );
 
-    controller.addStream(_currentRequestBytesStream(requestId)).then((_) {
+    final readingStream = _nativeDataStream(
+      uriSerializer(uri),
+      requestId,
+      params.bufferSize,
+    );
+
+    controller.addStream(readingStream).then((_) {
       controller.close();
     });
 

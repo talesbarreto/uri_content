@@ -10,7 +10,11 @@ import 'package:pigeon/pigeon.dart';
 ))
 @HostApi()
 abstract class UriContentPlatformApi {
-  void requestContent(String url, int requestId, int bufferSize);
+  @async
+  void startRequest(String url, int requestId, int bufferSize);
+
+  @async
+  UriContentChunkResult requestNextChunk(int requestId);
 
   void cancelRequest(int requestId);
 
@@ -18,10 +22,17 @@ abstract class UriContentPlatformApi {
   int? getContentLength(String url);
 
   @async
-  bool doesFileExist(String url);
+  bool exists(String url);
 }
 
-@FlutterApi()
-abstract class UriContentFlutterApi {
-  void onDataReceived(int requestId, Uint8List? data, String? error);
+class UriContentChunkResult {
+  final Uint8List? chunk;
+  final bool done;
+  final String? error;
+
+  const UriContentChunkResult(
+    this.chunk,
+    this.done,
+    this.error,
+  );
 }

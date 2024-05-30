@@ -64,6 +64,7 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
           }
 
           return ListView.builder(
+            itemCount: photos.length,
             itemBuilder: (BuildContext context, int index) {
               return FutureBuilder(
                 future: _getData(photos[index]),
