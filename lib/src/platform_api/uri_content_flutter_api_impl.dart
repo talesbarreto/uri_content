@@ -1,19 +1,13 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:uri_content/src/platform_api/uri_content_native_api.dart';
 
 class UriContentApi implements UriContentPlatformApi {
+  final _random = math.Random();
   final _api = UriContentPlatformApi();
 
-  UriContentApi._();
-
-  static final _instance = UriContentApi._();
-
-  factory UriContentApi() => _instance;
-
-  int _requestId = 0;
-
-  int getNextId() => _requestId++;
+  int getNextId() => _random.nextInt(1 << 32);
 
   @override
   Future<void> cancelRequest(int requestId) {

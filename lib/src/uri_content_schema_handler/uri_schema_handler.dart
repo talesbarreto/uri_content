@@ -20,7 +20,7 @@ abstract interface class UriSchemaHandler {
 }
 
 class UriSchemaHandlerParams {
-  static const defaultBufferSize = 1024 * 512;
+  static const defaultBufferSize = 1024 * 1024 * 10;
 
   final int bufferSize;
   final Map<String, Object> httpHeaders;

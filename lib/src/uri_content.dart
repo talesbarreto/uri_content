@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:uri_content/src/model/target_platform_factory.dart';
 
 import 'platform_api/uri_content_flutter_api_impl.dart';
