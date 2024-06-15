@@ -53,8 +53,8 @@ class HttpUriHandler implements UriSchemaHandler {
     final request = await httpClient.headUrl(uri);
     _addHeadersToRequest(request, params.httpHeaders);
     final response = await request.close();
-    final length = response.headers['content-length']?.firstOrNull ?? '';
-    return int.tryParse(length);
+    final length = response.headers['content-length'] ?? [];
+    return int.tryParse((length.isNotEmpty ? length.first : ''));
   }
 
   @override

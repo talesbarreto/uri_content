@@ -116,7 +116,7 @@ void main() {
       test("returns the content in the correct order", () async {
         final stream = await handler
             .getContentStream(uri, const UriSchemaHandlerParams())
-            .fold(
+            .fold<Uint8List>(
               Uint8List(0),
               (previous, element) =>
                   Uint8List.fromList([...previous, ...element]),
