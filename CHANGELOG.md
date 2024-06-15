@@ -1,3 +1,7 @@
+## 2.2.0-rc.2
+* Fixing an issue that caused concurrent calls from multiple isolates to fail on the `content` schema.
+* Increasing data reading chunk size from 512KB to 10MB
+
 ## 2.2.0-rc.1
 * Avoiding excessive memory usage when reading content from `content scheme` by only reading new data chunk when the previous one has been consumed.
 

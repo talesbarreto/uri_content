@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uri_content_example/android_content/data_fetcher.dart';
-import 'package:uri_content_example/android_photos_fetcher.dart';
+import 'package:uri_content_example/android_content/android_photos_fetcher.dart';
 
 class AndroidContentUriExample extends StatefulWidget {
   final AndroidPhotosFetcher androidPhotosFetcher;
@@ -53,7 +53,7 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
             itemCount: photos.length,
             itemBuilder: (BuildContext context, int index) {
               return FutureBuilder(
-                future: _dataFetcher.getDataFromAnotherIsolate(photos[index]),
+                future: _dataFetcher.getData(photos[index]),
                 builder: (BuildContext context,
                     AsyncSnapshot<(int? size, Uint8List data)> snapshot) {
                   final size = snapshot.data?.$1;

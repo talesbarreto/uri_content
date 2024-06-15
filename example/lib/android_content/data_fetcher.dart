@@ -17,6 +17,12 @@ class DataFetcher {
     });
   }
 
+  // This method is used to fetch data from another isolate
+  // It was written for testing purposes, intentionally overwhelming the
+  // reading with multiple threads to test the performance and concurrency access.
+  //
+  // If you need to write a similar method, consider to use a pool of isolates
+  // to read multiple files concurrently.
   Future<(int? size, Uint8List data)> getDataFromAnotherIsolate(Uri uri) async {
     final rootToken = RootIsolateToken.instance!;
     final port = ReceivePort();
