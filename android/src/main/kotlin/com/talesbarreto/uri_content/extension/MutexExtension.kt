@@ -4,7 +4,9 @@ import kotlinx.coroutines.sync.Mutex
 
 fun Mutex.tryUnlock() {
     try {
-        unlock()
+        if (isLocked) {
+            unlock()
+        }
     } catch (_: Exception) {
     }
 }

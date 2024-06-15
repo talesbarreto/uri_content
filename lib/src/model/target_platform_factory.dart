@@ -3,14 +3,21 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 TargetPlatform getTargetPlatform() {
-  return switch (Platform.operatingSystem) {
-    "android" => TargetPlatform.android,
-    "ios" => TargetPlatform.iOS,
-    "linux" => TargetPlatform.linux,
-    "macos" => TargetPlatform.macOS,
-    "windows" => TargetPlatform.windows,
-    "fuchsia" => TargetPlatform.fuchsia,
-    _ => throw UnsupportedError(
-        "Unsupported platform ${Platform.operatingSystem}"),
-  };
+  switch (Platform.operatingSystem) {
+    case "android":
+      return TargetPlatform.android;
+    case "ios":
+      return TargetPlatform.iOS;
+    case "linux":
+      return TargetPlatform.linux;
+    case "macos":
+      return TargetPlatform.macOS;
+    case "windows":
+      return TargetPlatform.windows;
+    case "fuchsia":
+      return TargetPlatform.fuchsia;
+    default:
+      throw UnsupportedError(
+          "Unsupported platform ${Platform.operatingSystem}");
+  }
 }

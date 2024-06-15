@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-abstract interface class UriSchemaHandler {
+abstract class UriSchemaHandler {
   bool canHandle(Uri uri);
 
   Stream<Uint8List> getContentStream(
@@ -20,7 +20,7 @@ abstract interface class UriSchemaHandler {
 }
 
 class UriSchemaHandlerParams {
-  static const defaultBufferSize = 1024 * 512;
+  static const defaultBufferSize = 1024 * 1024 * 10;
 
   final int bufferSize;
   final Map<String, Object> httpHeaders;

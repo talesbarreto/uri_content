@@ -53,7 +53,6 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         activeRequestsLock.withLock {
             activeRequests[requestId]?.let {
                 activeRequests[requestId] = update(it)
-
             }
         }
     }
@@ -79,7 +78,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
     private suspend fun requestContent(url: String, requestId: Long, bufferSize: Long) {
         val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
-
+        val readingDataLock = getRequest(requestId)?.readingDataLock ?: return
         var inputStream: InputStream? = null
         var bufferedInputStream: BufferedInputStream? = null
         try {
@@ -93,18 +92,33 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
             val requestLock = getRequest(requestId)?.requestLock ?: return
             do {
+                // Starts locked by default, it is unlocked by requestNextChunk when dart side
+                // requests the next (or first) data chunk
                 requestLock.lock()
+
                 val request = getRequest(requestId) ?: break
 
                 val bytesRead = withContext(Dispatchers.IO) {
-                    bufferedInputStream.read(buffer)
+                    try {
+                        bufferedInputStream.read(buffer)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                if (bytesRead == null) {
+                    updateRequest(requestId) {
+                        copy(readChunk = null, error = "Error reading data")
+                    }
+                    readingDataLock.tryUnlock()
+                    return
                 }
 
                 if (bytesRead == -1) {
                     updateRequest(requestId) {
                         copy(readChunk = null, done = true)
                     }
-                    request.readingDataLock.tryUnlock()
+                    readingDataLock.tryUnlock()
                     return
                 }
 
@@ -113,7 +127,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     copy(readChunk = data)
                 }
 
-                request.readingDataLock.tryUnlock()
+                readingDataLock.tryUnlock()
             } while (true)
 
         } catch (exception: Exception) {
@@ -152,9 +166,10 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                 callback(Result.failure(Exception("Request not found")))
                 return@launch
             }
-            request.readingDataLock.lock()
-            request.requestLock.tryUnlock()
-            request.readingDataLock.withLock {
+
+            request.readingDataLock.lock() // To be unlocked by [getRequest], after it is finished
+            request.requestLock.tryUnlock() // Release [getRequest] to read next chunk
+            request.readingDataLock.withLock { // Wait for the next chunk to be available
                 val requestResult = getRequest(requestId)
                 if (requestResult == null) {
                     result = Result.failure(Exception("Request not found"))

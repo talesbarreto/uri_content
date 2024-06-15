@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:uri_content/uri_content.dart';
-import 'package:uri_content_example/android_content_uri_example.dart';
+import 'package:uri_content_example/android_content/android_content_uri_example.dart';
 
 void main() {
   runApp(const MyApp());
