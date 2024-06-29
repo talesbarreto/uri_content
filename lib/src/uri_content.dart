@@ -57,7 +57,6 @@ class UriContent {
   /// Get the content from an Uri.
   /// Supported schemes: data, file, http, https, Android content
   ///
-  ///
   /// [httpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
   ///
   /// Throws exception if it was nos possible to get the content
@@ -100,7 +99,8 @@ class UriContent {
   ///
   /// [httpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
   ///
-  /// [bufferSize] sets the total of bytes to be send on each stream event. It ONLY affects `android content` Uris
+  /// [bufferSize] sets the total of bytes to be send on each stream event. It ONLY affects `android content` Uris.
+  /// The default value is 5MB. Lower values reduce the memory consumption. Higher values will considerably increase the performance.
   ///
   /// Warning: To prevent resource leaks, make sure to either listen to the stream until the end or close it
   /// if you want to abort the content reading.
