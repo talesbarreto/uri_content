@@ -42,6 +42,9 @@ class AndroidContentUriHandler implements UriSchemaHandler {
     while (true) {
       final UriContentChunkResult result;
       try {
+        // Ideally, we should continuously send data from Kotlin to Dart and Dart should inform the native code when the stream should be paused.
+        // However, we can not directly send data from Kotlin to Dart directly if we need to work with multiple isolates, like pointed out in this issue https://github.com/talesbarreto/uri_content/issues/10
+        // To overcome this, we request each chunk of data as an ordinary method channel request.
         result = await uriContentApi.requestNextChunk(requestId);
       } catch (e) {
         yield* Stream.error(UriContentError(e.toString()));

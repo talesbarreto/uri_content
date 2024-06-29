@@ -55,7 +55,10 @@ class DataFetcherInput {
 Future<void> _fetch(DataFetcherInput input) async {
   BackgroundIsolateBinaryMessenger.ensureInitialized(input.token);
   final uriContent = UriContent();
-  final size = await uriContent.getContentLength(input.uri);
-  final data = await uriContent.from(input.uri);
-  input.sendPort.send((size, data));
+
+  final result = await Future.wait([
+    uriContent.getContentLength(input.uri),
+    uriContent.from(input.uri),
+  ]);
+  input.sendPort.send((result.first, result.last));
 }
