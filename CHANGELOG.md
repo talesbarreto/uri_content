@@ -1,8 +1,15 @@
+## 2.2.1
+
+- Android's Gradle script adapted to support new AGP versions
+
 ## 2.2.0
-* Avoiding excessive memory usage when reading content from `content scheme` by only reading new data chunk when the previous one has been consumed.
+
+* Avoiding excessive memory usage when reading content from `content scheme` by only reading new
+  data chunk when the previous one has been consumed.
 * Min SDK version is now 2.17.0
 
 ## 2.1.1
+
 * Fixing docs
 
 ## 2.1.0
