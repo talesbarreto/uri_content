@@ -1,3 +1,18 @@
+## 3.0.0
+### Updated the project to use the Flutter 3.29.0 structure
+
+- **Android min SDK Version**:
+  - Updated minimum SDK version from `16` to `21` (older devices with SDK version < 21.0 are no longer supported)
+- **iOS Deployment Target**:
+  - Updated minimum iOS version from `11.0` to `12.0` (older devices with iOS < 12.0 are no longer supported)
+- **Kotlin Version**:
+  - Updated from `1.7.10` to `1.8.22` (may require code changes to support new version)
+- **Gradle Version**:
+  - Updated from `7.4` to `8.9` (may require changes in build scripts)
+- **Gradle Properties**:
+  - Updated JVM args and other properties
+- **Android Gradle Plugin**:
+  - Updated from `7.2.0` to `8.7.0` (may require changes in build configuration)
 ## 2.2.1
 
 - Android's Gradle script adapted to support new AGP versions
