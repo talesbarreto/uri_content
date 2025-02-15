@@ -20,7 +20,6 @@ class UriContentPlugin : public flutter::Plugin {
   UriContentPlugin(const UriContentPlugin&) = delete;
   UriContentPlugin& operator=(const UriContentPlugin&) = delete;
 
- private:
   // Called when a method is called on this plugin's channel from Dart.
   void HandleMethodCall(
       const flutter::MethodCall<flutter::EncodableValue> &method_call,
