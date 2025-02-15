@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:uri_content/src/platform_api/uri_content_native_api.dart';
 
-class UriContentApi  {
+class UriContentApi {
   final _random = math.Random();
   final _api = UriContentPlatformApi();
 
@@ -12,11 +12,10 @@ class UriContentApi  {
     return _api.cancelRequest(requestId);
   }
 
-  
   Future<bool> exists(String url) {
     return _api.exists(url);
   }
-  
+
   Future<int?> getContentLength(String url) {
     return _api.getContentLength(url);
   }

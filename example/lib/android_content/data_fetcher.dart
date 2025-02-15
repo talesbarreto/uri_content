@@ -29,11 +29,7 @@ class DataFetcher {
 
     await Isolate.spawn(
       _fetch,
-      DataFetcherInput(
-        uri: uri,
-        token: rootToken,
-        sendPort: port.sendPort,
-      ),
+      DataFetcherInput(uri: uri, token: rootToken, sendPort: port.sendPort),
     );
     final result = await port.first;
     return result;

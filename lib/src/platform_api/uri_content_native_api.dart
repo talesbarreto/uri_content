@@ -46,7 +46,6 @@ class UriContentChunkResult {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -54,7 +53,7 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is UriContentChunkResult) {
+    } else if (value is UriContentChunkResult) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
     } else {
@@ -65,7 +64,7 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         return UriContentChunkResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -77,9 +76,11 @@ class UriContentPlatformApi {
   /// Constructor for [UriContentPlatformApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  UriContentPlatformApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  UriContentPlatformApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -87,14 +88,16 @@ class UriContentPlatformApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<void> startRequest(String url, int requestId, int bufferSize) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.startRequest$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.startRequest$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final List<Object?>? pigeonVar_replyList =
-        await pigeonVar_channel.send(<Object?>[url, requestId, bufferSize]) as List<Object?>?;
+    final List<Object?>? pigeonVar_replyList = await pigeonVar_channel
+        .send(<Object?>[url, requestId, bufferSize]) as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
     } else if (pigeonVar_replyList.length > 1) {
@@ -109,8 +112,10 @@ class UriContentPlatformApi {
   }
 
   Future<UriContentChunkResult> requestNextChunk(int requestId) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestNextChunk$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestNextChunk$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -136,8 +141,10 @@ class UriContentPlatformApi {
   }
 
   Future<void> cancelRequest(int requestId) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.cancelRequest$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.cancelRequest$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -158,8 +165,10 @@ class UriContentPlatformApi {
   }
 
   Future<int?> getContentLength(String url) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.getContentLength$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.getContentLength$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -180,8 +189,10 @@ class UriContentPlatformApi {
   }
 
   Future<bool> exists(String url) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.exists$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.exists$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,

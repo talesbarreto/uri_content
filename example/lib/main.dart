@@ -25,9 +25,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text("pull_request_coverage readme"),
-        ),
+        appBar: AppBar(title: const Text("pull_request_coverage readme")),
         body: FutureBuilder<String>(
           future: uriStringFuture,
           builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
@@ -40,10 +38,11 @@ class _MyAppState extends State<MyApp> {
         floatingActionButton: Visibility(
           visible: Theme.of(context).platform == TargetPlatform.android,
           child: Builder(
-            builder: (context) => ElevatedButton(
-              child: const Text("Android's content example"),
-              onPressed: () => AndroidContentUriExample.push(context),
-            ),
+            builder:
+                (context) => ElevatedButton(
+                  child: const Text("Android's content example"),
+                  onPressed: () => AndroidContentUriExample.push(context),
+                ),
           ),
         ),
       ),
