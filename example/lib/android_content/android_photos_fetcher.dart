@@ -6,8 +6,9 @@ class AndroidPhotosFetcher {
   const AndroidPhotosFetcher();
 
   Future<List<Uri>> getPhotos() async {
-    final List<dynamic> photos =
-        await platform.invokeMethod('getPhotosUrisFromMediaStore');
+    final List<dynamic> photos = await platform.invokeMethod(
+      'getPhotosUrisFromMediaStore',
+    );
     return photos
         .cast<String>()
         .map((e) => Uri.parse(e))

@@ -25,9 +25,10 @@ class AndroidContentUriExample extends StatefulWidget {
     if (await _requestPermission() && context.mounted) {
       return Navigator.of(context).push<void>(
         MaterialPageRoute(
-          builder: (context) => const AndroidContentUriExample(
-            androidPhotosFetcher: AndroidPhotosFetcher(),
-          ),
+          builder:
+              (context) => const AndroidContentUriExample(
+                androidPhotosFetcher: AndroidPhotosFetcher(),
+              ),
         ),
       );
     }
@@ -54,8 +55,10 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
             itemBuilder: (BuildContext context, int index) {
               return FutureBuilder(
                 future: _dataFetcher.getData(photos[index]),
-                builder: (BuildContext context,
-                    AsyncSnapshot<(int? size, Uint8List data)> snapshot) {
+                builder: (
+                  BuildContext context,
+                  AsyncSnapshot<(int? size, Uint8List data)> snapshot,
+                ) {
                   final size = snapshot.data?.$1;
                   final data = snapshot.data?.$2;
 
@@ -73,11 +76,7 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
                             ),
                             data == null
                                 ? const CircularProgressIndicator()
-                                : Flexible(
-                                    child: Image.memory(
-                                      data,
-                                    ),
-                                  ),
+                                : Flexible(child: Image.memory(data)),
                           ],
                         ),
                       ),
