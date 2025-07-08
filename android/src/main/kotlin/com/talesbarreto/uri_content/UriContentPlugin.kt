@@ -1,7 +1,8 @@
 package com.talesbarreto.uri_content
 
 import android.content.ContentResolver
-import android.net.Uri
+import android.util.Log
+import androidx.core.net.toUri
 import com.talesbarreto.uri_content.extension.tryUnlock
 import com.talesbarreto.uri_content.model.UriContentRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -11,13 +12,17 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.InputStream
-import kotlin.Result
 import kotlin.coroutines.CoroutineContext
 import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 
@@ -30,6 +35,8 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     private var contentResolver: ContentResolver? = null
     private val activeRequests = HashMap<Long, UriContentRequest>()
     private val activeRequestsLock = Mutex()
+
+    private val filesBeingReadCount = MutableStateFlow(0)
 
     private suspend fun getRequest(requestId: Long): UriContentRequest? {
         return activeRequestsLock.withLock {
@@ -85,7 +92,8 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         var inputStream: InputStream? = null
         var bufferedInputStream: BufferedInputStream? = null
         try {
-            val uri = Uri.parse(url)
+            filesBeingReadCount.update { it + 1 }
+            val uri = url.toUri()
 
             inputStream = contentResolver.openInputStream(uri)
 
@@ -99,12 +107,10 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                 // requests the next (or first) data chunk
                 requestLock.lock()
 
-                val request = getRequest(requestId) ?: break
-
-                val bytesRead = withContext(Dispatchers.IO) {
+                val bytesRead: Int? = withContext(Dispatchers.IO) {
                     try {
                         bufferedInputStream.read(buffer)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
                 }
@@ -132,12 +138,12 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
                 readingDataLock.tryUnlock()
             } while (true)
-
         } catch (exception: Exception) {
             updateRequest(requestId) {
                 copy(readChunk = null, error = exception.toString())
             }
         } finally {
+            filesBeingReadCount.update { it - 1 }
             withContext(Dispatchers.IO) {
                 inputStream?.close()
                 bufferedInputStream?.close()
@@ -156,12 +162,29 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                 if (!activeRequests.contains(requestId)) {
                     setRequest(requestId, UriContentRequest(bufferSize))
                     callback(Result.success(Unit))
+                    waitForMemoryToBeAvailable(bufferSize)
                     requestContent(url, requestId, bufferSize)
                 } else {
                     callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
                 }
             } catch (e: Exception) {
                 callback(Result.failure(e))
+            }
+        }
+    }
+
+    private suspend fun waitForMemoryToBeAvailable(bufferSize: Long) {
+        while (Runtime.getRuntime().freeMemory() < 4 * bufferSize) {
+            val filesBeingRead = filesBeingReadCount.value
+
+            // Wait for a change in active requests
+            val currentFilesBeingRead =
+                filesBeingReadCount.filter { it ->
+                    it != filesBeingRead || it < 1
+                }.first()
+
+            if (currentFilesBeingRead <= 1) {
+                break
             }
         }
     }
@@ -221,7 +244,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         }
         launch {
             try {
-                val uri = Uri.parse(url)
+                val uri = url.toUri()
                 val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
                 val contentSize = parcelFileDescriptor?.statSize
                 parcelFileDescriptor?.close()
@@ -248,12 +271,12 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
             }
             var stream: InputStream? = null
             try {
-                val uri = Uri.parse(url)
+                val uri = url.toUri()
                 stream = contentResolver.openInputStream(uri)
                 withContext(Dispatchers.Main) {
                     callback(Result.success(true))
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(false))
                 }
