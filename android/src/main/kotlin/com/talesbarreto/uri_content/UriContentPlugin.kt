@@ -1,7 +1,6 @@
 package com.talesbarreto.uri_content
 
 import android.content.ContentResolver
-import android.util.Log
 import androidx.core.net.toUri
 import com.talesbarreto.uri_content.extension.tryUnlock
 import com.talesbarreto.uri_content.model.UriContentRequest
@@ -12,7 +11,6 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
