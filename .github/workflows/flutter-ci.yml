@@ -33,4 +33,28 @@ jobs:
         run: flutter test --coverage
 
       - name: Coverage
-        run: git diff origin/main | flutter pub run pull_request_coverage
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+        run: |
+          echo "#### Diff coverage result" > coverage.txt; 
+          echo " " >> coverage.txt;
+          git diff origin/${{ github.event.pull_request.base.ref }} |  flutter pub run pull_request_coverage --output-mode markdown >> coverage.txt;
+
+      - name: Find Comment
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '#### Diff coverage result'
+
+      - name: Post Coverage Comment
+        if: ${{ github.event_name == 'pull_request' && github.actor != 'dependabot[bot]' }}
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: 'coverage.txt'
+          edit-mode: replace
