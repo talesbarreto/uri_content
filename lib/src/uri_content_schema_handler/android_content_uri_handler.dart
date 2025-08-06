@@ -37,7 +37,7 @@ class AndroidContentUriHandler implements UriSchemaHandler {
     int requestId,
     int bufferSize,
   ) async* {
-    await uriContentApi.startRequest(uri, requestId, bufferSize);
+    await uriContentApi.registerRequest(uri, requestId, bufferSize);
 
     while (true) {
       final UriContentChunkResult result;

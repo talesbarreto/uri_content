@@ -18,7 +18,7 @@ void main() {
     when(mockUriContentApi.getNextId).thenReturn(1);
     when(() => mockUriContentApi.cancelRequest(any()))
         .thenAnswer((invocation) => SynchronousFuture(null));
-    when(() => mockUriContentApi.startRequest(any(), any(), any()))
+    when(() => mockUriContentApi.registerRequest(any(), any(), any()))
         .thenAnswer((invocation) => SynchronousFuture(null));
     handler = AndroidContentUriHandler(
       uriContentApi: mockUriContentApi,
@@ -82,7 +82,7 @@ void main() {
         Uint8List.fromList([9, 10, 11, 12]),
       ];
 
-      when(() => mockUriContentApi.startRequest(any(), any(), any()))
+      when(() => mockUriContentApi.registerRequest(any(), any(), any()))
           .thenAnswer((invocation) => SynchronousFuture(null));
 
       when(() => mockUriContentApi.requestNextChunk(any())).thenAnswer(
@@ -101,7 +101,7 @@ void main() {
             .getContentStream(uri, const UriSchemaHandlerParams())
             .toList();
 
-        verify(() => mockUriContentApi.startRequest(any(), any(), any()))
+        verify(() => mockUriContentApi.registerRequest(any(), any(), any()))
             .called(1);
       });
 

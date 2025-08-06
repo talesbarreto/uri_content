@@ -10,12 +10,21 @@ import 'package:pigeon/pigeon.dart';
 ))
 @HostApi()
 abstract class UriContentPlatformApi {
+  /// [registerRequest] prepares a request on Android side, persisting its parameters and returning immediately.
+  /// After this method is called, the client can start calling [requestNextChunk] to get the next chunk of data, that will have at most [bufferSize] bytes.
+  /// The [requestId] is used to identify the request in subsequent calls to [requestNextChunk] and [cancelRequest].
+  /// The [url] is the content URI to be accessed.
+  /// The [bufferSize] is the maximum size of each chunk of data to be returned, it also defines the size of the internal buffer used to read data from the content URI on the Android side.
   @async
-  void startRequest(String url, int requestId, int bufferSize);
+  void registerRequest(String url, int requestId, int bufferSize);
 
+  /// [requestNextChunk] releases the Android side to read the next chunk of data from the content URI associated with the given [requestId].
+  /// It returns a [UriContentChunkResult] that contains the next chunk of data, or an error if something went wrong.
+  /// After the chunk is read, the Android side will wait until this method is called again to read the next chunk.
   @async
   UriContentChunkResult requestNextChunk(int requestId);
 
+  /// [cancelRequest] cancels the request associated with the given [requestId], releasing any resources associated with it on the Android side.
   void cancelRequest(int requestId);
 
   @async

@@ -55,7 +55,8 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         channel.setMethodCallHandler(null)
     }
 
-    override fun startRequest(
+    /// See api_interface/uri_content_native_api.dart documentation to understand the API flow.
+    override fun registerRequest(
         url: String,
         requestId: Long,
         bufferSize: Long,
@@ -68,13 +69,56 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     callback(Result.success(Unit))
                     waitForEnoughMemoryToBeAvailable(bufferSize)
                     readFileChunks(url, requestId, bufferSize)
-
                 } else {
                     callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
                 }
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
+        }
+    }
+
+
+    override fun requestNextChunk(
+        requestId: Long,
+        callback: (Result<UriContentChunkResult>) -> Unit
+    ) {
+        launch {
+            val result: Result<UriContentChunkResult>
+            val request = activeRequests.getRequest(requestId)
+            if (request == null) {
+                callback(Result.failure(Exception("Request not found")))
+                return@launch
+            }
+
+            request.chunkResultLock.lock() // To be unlocked by [readFileChunks], after it is finished
+            request.nextChunkLock.tryUnlock() // Release [readFileChunks] to read next chunk
+            request.chunkResultLock.withLock { // Wait for the next chunk to be available
+                val requestResult = activeRequests.getRequest(requestId)
+                if (requestResult == null) {
+                    result = Result.failure(Exception("Request not found"))
+                } else if (requestResult.done) {
+                    result = Result.success(UriContentChunkResult(null, true))
+                    cancelRequest(requestId)
+                } else if (requestResult.error != null) {
+                    result = Result.success(
+                        UriContentChunkResult(
+                            null,
+                            false,
+                            error = requestResult.error
+                        )
+                    )
+                    cancelRequest(requestId)
+                } else {
+                    result = Result.success(
+                        UriContentChunkResult(
+                            chunk = activeRequests.removeReadChunk(requestId),
+                            done = false,
+                        )
+                    )
+                }
+            }
+            callback(result)
         }
     }
 
@@ -158,49 +202,6 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
             if (currentFilesBeingRead <= 1) {
                 break
             }
-        }
-    }
-
-    override fun requestNextChunk(
-        requestId: Long,
-        callback: (Result<UriContentChunkResult>) -> Unit
-    ) {
-        launch(Dispatchers.Main) {
-            val result: Result<UriContentChunkResult>
-            val request = activeRequests.getRequest(requestId)
-            if (request == null) {
-                callback(Result.failure(Exception("Request not found")))
-                return@launch
-            }
-
-            request.chunkResultLock.lock() // To be unlocked by [readFileChunks], after it is finished
-            request.nextChunkLock.tryUnlock() // Release [readFileChunks] to read next chunk
-            request.chunkResultLock.withLock { // Wait for the next chunk to be available
-                val requestResult = activeRequests.getRequest(requestId)
-                if (requestResult == null) {
-                    result = Result.failure(Exception("Request not found"))
-                } else if (requestResult.done) {
-                    result = Result.success(UriContentChunkResult(null, true))
-                    cancelRequest(requestId)
-                } else if (requestResult.error != null) {
-                    result = Result.success(
-                        UriContentChunkResult(
-                            null,
-                            false,
-                            error = requestResult.error
-                        )
-                    )
-                    cancelRequest(requestId)
-                } else {
-                    result = Result.success(
-                        UriContentChunkResult(
-                            chunk = activeRequests.removeReadChunk(requestId),
-                            done = false,
-                        )
-                    )
-                }
-            }
-            callback(result)
         }
     }
 
