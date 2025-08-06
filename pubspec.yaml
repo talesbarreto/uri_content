@@ -1,6 +1,6 @@
 name: uri_content
 description: Get the Uint8List content of a given Uri. Supports file, data, content and http/https
-version: 3.0.0
+version: 3.1.0
 homepage: https://github.com/talesbarreto/uri_content
 topics:
   - uri
@@ -9,7 +9,7 @@ topics:
   - uint8list
 
 environment:
-  sdk: '>=3.0.0'
+  sdk: '>=3.0.0 <4.0.0'
   flutter: ">=2.5.0"
 
 dependencies:

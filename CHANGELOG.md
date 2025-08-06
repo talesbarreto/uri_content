@@ -1,3 +1,8 @@
+## 3.1.0
+* Updates minimum supported SDK version to Dart 3.0.
+* Fix `OutOfMemoryError` crash by holding new readings while there is no enough free memory.
+* Updates Android API plugin interface by bumping `pigeon` to 26.0.0
+
 ## 3.0.0
 ### Updated the project to use the Flutter 3.29.0 structure
 
