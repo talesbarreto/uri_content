@@ -1,8 +1,9 @@
 package com.talesbarreto.uri_content
 
 import android.content.ContentResolver
-import android.net.Uri
+import androidx.core.net.toUri
 import com.talesbarreto.uri_content.extension.tryUnlock
+import com.talesbarreto.uri_content.model.UriContentActiveRequests
 import com.talesbarreto.uri_content.model.UriContentRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -11,13 +12,15 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
 import java.io.InputStream
-import kotlin.Result
 import kotlin.coroutines.CoroutineContext
 import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 
@@ -28,37 +31,12 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     override val coroutineContext: CoroutineContext = Job() + Dispatchers.Main
     private lateinit var channel: MethodChannel
     private var contentResolver: ContentResolver? = null
-    private val activeRequests = HashMap<Long, UriContentRequest>()
-    private val activeRequestsLock = Mutex()
 
-    private suspend fun getRequest(requestId: Long): UriContentRequest? {
-        return activeRequestsLock.withLock {
-            activeRequests[requestId]
-        }
-    }
+    // A map to keep track of active requests and their metadata.
+    private val activeRequests = UriContentActiveRequests()
 
-    private suspend fun setRequest(requestId: Long, request: UriContentRequest) {
-        activeRequestsLock.withLock {
-            activeRequests[requestId] = request
-        }
-    }
-
-    private suspend fun deleteRequest(requestId: Long): UriContentRequest? {
-        return activeRequestsLock.withLock {
-            activeRequests.remove(requestId)
-        }
-    }
-
-    private suspend fun updateRequest(
-        requestId: Long,
-        update: UriContentRequest.() -> UriContentRequest
-    ) {
-        activeRequestsLock.withLock {
-            activeRequests[requestId]?.let {
-                activeRequests[requestId] = update(it)
-            }
-        }
-    }
+    // A counter to keep track of how many files are currently being read.
+    private val concurrentReadOperationCounter = MutableStateFlow(0)
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "uri_content")
@@ -79,72 +57,6 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         channel.setMethodCallHandler(null)
     }
 
-    private suspend fun requestContent(url: String, requestId: Long, bufferSize: Long) {
-        val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
-        val readingDataLock = getRequest(requestId)?.readingDataLock ?: return
-        var inputStream: InputStream? = null
-        var bufferedInputStream: BufferedInputStream? = null
-        try {
-            val uri = Uri.parse(url)
-
-            inputStream = contentResolver.openInputStream(uri)
-
-            bufferedInputStream = BufferedInputStream(inputStream, bufferSize.toInt())
-
-            val buffer = ByteArray(bufferSize.toInt())
-
-            val requestLock = getRequest(requestId)?.requestLock ?: return
-            do {
-                // Starts locked by default, it is unlocked by requestNextChunk when dart side
-                // requests the next (or first) data chunk
-                requestLock.lock()
-
-                val request = getRequest(requestId) ?: break
-
-                val bytesRead = withContext(Dispatchers.IO) {
-                    try {
-                        bufferedInputStream.read(buffer)
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-
-                if (bytesRead == null) {
-                    updateRequest(requestId) {
-                        copy(readChunk = null, error = "Error reading data")
-                    }
-                    readingDataLock.tryUnlock()
-                    return
-                }
-
-                if (bytesRead == -1) {
-                    updateRequest(requestId) {
-                        copy(readChunk = null, done = true)
-                    }
-                    readingDataLock.tryUnlock()
-                    return
-                }
-
-                val data = buffer.sliceArray(0 until bytesRead)
-                updateRequest(requestId) {
-                    copy(readChunk = data)
-                }
-
-                readingDataLock.tryUnlock()
-            } while (true)
-
-        } catch (exception: Exception) {
-            updateRequest(requestId) {
-                copy(readChunk = null, error = exception.toString())
-            }
-        } finally {
-            withContext(Dispatchers.IO) {
-                inputStream?.close()
-                bufferedInputStream?.close()
-            }
-        }
-    }
-
     override fun startRequest(
         url: String,
         requestId: Long,
@@ -154,14 +66,99 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         launch {
             try {
                 if (!activeRequests.contains(requestId)) {
-                    setRequest(requestId, UriContentRequest(bufferSize))
+                    activeRequests.registerRequest(requestId, UriContentRequest(bufferSize))
                     callback(Result.success(Unit))
-                    requestContent(url, requestId, bufferSize)
+                    waitForEnoughMemoryToBeAvailable(bufferSize)
+                    readFileChunks(url, requestId, bufferSize)
                 } else {
                     callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
                 }
             } catch (e: Exception) {
                 callback(Result.failure(e))
+            }
+        }
+    }
+
+
+    private suspend fun readFileChunks(url: String, requestId: Long, bufferSize: Long) {
+        val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
+        val readingDataLock = activeRequests.getReadingDataLock(requestId) ?: return
+        var inputStream: InputStream? = null
+        var bufferedInputStream: BufferedInputStream? = null
+
+        try {
+            concurrentReadOperationCounter.update { it + 1 }
+            val uri = url.toUri()
+
+            inputStream = contentResolver.openInputStream(uri)
+
+            bufferedInputStream = BufferedInputStream(inputStream, bufferSize.toInt())
+
+            val buffer = ByteArray(bufferSize.toInt())
+
+            val requestLock = activeRequests.getRequestDataLock(requestId) ?: return
+
+            while (true) {
+                // Starts locked by default, it is unlocked by requestNextChunk when dart side
+                // requests the next (or first) data chunk
+                requestLock.lock()
+
+                val bytesRead: Int? = withContext(Dispatchers.IO) {
+                    try {
+                        bufferedInputStream.read(buffer)
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
+                if (bytesRead == null) {
+                    activeRequests.updateRequest(requestId) {
+                        copy(readChunk = null, error = "Error reading data")
+                    }
+                    readingDataLock.tryUnlock()
+                    return
+                }
+
+                if (bytesRead == -1) {
+                    activeRequests.updateRequest(requestId) {
+                        copy(readChunk = null, done = true)
+                    }
+                    readingDataLock.tryUnlock()
+                    return
+                }
+
+                val data = buffer.sliceArray(0 until bytesRead)
+                activeRequests.updateRequest(requestId) {
+                    copy(readChunk = data)
+                }
+
+                readingDataLock.tryUnlock()
+            }
+        } catch (exception: Exception) {
+            activeRequests.updateRequest(requestId) {
+                copy(readChunk = null, error = exception.toString())
+            }
+        } finally {
+            concurrentReadOperationCounter.update { it - 1 }
+            withContext(Dispatchers.IO) {
+                inputStream?.close()
+                bufferedInputStream?.close()
+            }
+        }
+    }
+
+    private suspend fun waitForEnoughMemoryToBeAvailable(bufferSize: Long) {
+        while (Runtime.getRuntime().freeMemory() < 4 * bufferSize) {
+            val filesBeingRead = concurrentReadOperationCounter.value
+
+            // Wait for a change in active requests
+            val currentFilesBeingRead =
+                concurrentReadOperationCounter.filter { it ->
+                    it != filesBeingRead || it < 1
+                }.first()
+
+            if (currentFilesBeingRead <= 1) {
+                break
             }
         }
     }
@@ -172,16 +169,16 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     ) {
         launch(Dispatchers.Main) {
             val result: Result<UriContentChunkResult>
-            val request = getRequest(requestId)
+            val request = activeRequests.getRequest(requestId)
             if (request == null) {
                 callback(Result.failure(Exception("Request not found")))
                 return@launch
             }
 
-            request.readingDataLock.lock() // To be unlocked by [getRequest], after it is finished
-            request.requestLock.tryUnlock() // Release [getRequest] to read next chunk
+            request.readingDataLock.lock() // To be unlocked by [readFileChunks], after it is finished
+            request.requestLock.tryUnlock() // Release [readFileChunks] to read next chunk
             request.readingDataLock.withLock { // Wait for the next chunk to be available
-                val requestResult = getRequest(requestId)
+                val requestResult = activeRequests.getRequest(requestId)
                 if (requestResult == null) {
                     result = Result.failure(Exception("Request not found"))
                 } else if (requestResult.done) {
@@ -207,7 +204,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
     override fun cancelRequest(requestId: Long) {
         launch {
-            val request = deleteRequest(requestId)
+            val request = activeRequests.deleteRequest(requestId)
             request?.requestLock?.tryUnlock()
             request?.readingDataLock?.tryUnlock()
         }
@@ -221,7 +218,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         }
         launch {
             try {
-                val uri = Uri.parse(url)
+                val uri = url.toUri()
                 val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
                 val contentSize = parcelFileDescriptor?.statSize
                 parcelFileDescriptor?.close()
@@ -248,12 +245,12 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
             }
             var stream: InputStream? = null
             try {
-                val uri = Uri.parse(url)
+                val uri = url.toUri()
                 stream = contentResolver.openInputStream(uri)
                 withContext(Dispatchers.Main) {
                     callback(Result.success(true))
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 withContext(Dispatchers.Main) {
                     callback(Result.success(false))
                 }
