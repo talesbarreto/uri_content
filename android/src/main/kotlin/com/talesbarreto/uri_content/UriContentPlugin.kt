@@ -42,15 +42,13 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "uri_content")
         channel.setMethodCallHandler(this)
         contentResolver = flutterPluginBinding.applicationContext.contentResolver
-        UriContentPlatformApi.setUp(flutterPluginBinding.binaryMessenger, this)
+        UriContentPlatformApi.setUp(
+            binaryMessenger = flutterPluginBinding.binaryMessenger,
+            api = this
+        )
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannelResult) {
-        if (call.method == "getPlatformVersion") {
-            result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        } else {
-            result.notImplemented()
-        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -82,7 +80,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
     private suspend fun readFileChunks(url: String, requestId: Long, bufferSize: Long) {
         val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
-        val readingDataLock = activeRequests.getReadingDataLock(requestId) ?: return
+        val chunkResultLock = activeRequests.getChunkResultLock(requestId) ?: return
         var inputStream: InputStream? = null
         var bufferedInputStream: BufferedInputStream? = null
 
@@ -96,12 +94,12 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
             val buffer = ByteArray(bufferSize.toInt())
 
-            val requestLock = activeRequests.getRequestDataLock(requestId) ?: return
+            val nextChunkLock = activeRequests.getNextChunkLock(requestId) ?: return
 
             while (true) {
                 // Starts locked by default, it is unlocked by requestNextChunk when dart side
                 // requests the next (or first) data chunk
-                requestLock.lock()
+                nextChunkLock.lock()
 
                 val bytesRead: Int? = withContext(Dispatchers.IO) {
                     try {
@@ -115,7 +113,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     activeRequests.updateRequest(requestId) {
                         copy(readChunk = null, error = "Error reading data")
                     }
-                    readingDataLock.tryUnlock()
+                    chunkResultLock.tryUnlock()
                     return
                 }
 
@@ -123,7 +121,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     activeRequests.updateRequest(requestId) {
                         copy(readChunk = null, done = true)
                     }
-                    readingDataLock.tryUnlock()
+                    chunkResultLock.tryUnlock()
                     return
                 }
 
@@ -132,7 +130,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     copy(readChunk = data)
                 }
 
-                readingDataLock.tryUnlock()
+                chunkResultLock.tryUnlock()
             }
         } catch (exception: Exception) {
             activeRequests.updateRequest(requestId) {
@@ -175,9 +173,9 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                 return@launch
             }
 
-            request.readingDataLock.lock() // To be unlocked by [readFileChunks], after it is finished
-            request.requestLock.tryUnlock() // Release [readFileChunks] to read next chunk
-            request.readingDataLock.withLock { // Wait for the next chunk to be available
+            request.chunkResultLock.lock() // To be unlocked by [readFileChunks], after it is finished
+            request.nextChunkLock.tryUnlock() // Release [readFileChunks] to read next chunk
+            request.chunkResultLock.withLock { // Wait for the next chunk to be available
                 val requestResult = activeRequests.getRequest(requestId)
                 if (requestResult == null) {
                     result = Result.failure(Exception("Request not found"))
@@ -194,8 +192,12 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     )
                     cancelRequest(requestId)
                 } else {
-                    val data = requestResult.readChunk
-                    result = Result.success(UriContentChunkResult(data, false))
+                    result = Result.success(
+                        UriContentChunkResult(
+                            chunk = activeRequests.removeReadChunk(requestId),
+                            done = false,
+                        )
+                    )
                 }
             }
             callback(result)
@@ -205,8 +207,8 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     override fun cancelRequest(requestId: Long) {
         launch {
             val request = activeRequests.deleteRequest(requestId)
-            request?.requestLock?.tryUnlock()
-            request?.readingDataLock?.tryUnlock()
+            request?.nextChunkLock?.tryUnlock()
+            request?.chunkResultLock?.tryUnlock()
         }
     }
 

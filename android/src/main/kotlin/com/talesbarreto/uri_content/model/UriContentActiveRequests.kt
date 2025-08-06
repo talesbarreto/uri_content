@@ -42,11 +42,20 @@ class UriContentActiveRequests {
         }
     }
 
-    fun getReadingDataLock(requestId: Long): Mutex? {
-        return activeRequests[requestId]?.readingDataLock
+    fun getNextChunkLock(requestId: Long): Mutex? {
+        return activeRequests[requestId]?.nextChunkLock
     }
 
-    fun getRequestDataLock(requestId: Long): Mutex? {
-        return activeRequests[requestId]?.requestLock
+    fun getChunkResultLock(requestId: Long): Mutex? {
+        return activeRequests[requestId]?.chunkResultLock
+    }
+
+    fun removeReadChunk(requestId: Long): ByteArray? {
+        var chunk: ByteArray? = null
+        activeRequests[requestId]?.let { request ->
+            chunk = request.readChunk
+            activeRequests[requestId] = request.copy(readChunk = null)
+        }
+        return chunk
     }
 }
