@@ -68,6 +68,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     callback(Result.success(Unit))
                     waitForEnoughMemoryToBeAvailable(bufferSize)
                     readFileChunks(url, requestId, bufferSize)
+
                 } else {
                     callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
                 }
@@ -76,7 +77,6 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
             }
         }
     }
-
 
     private suspend fun readFileChunks(url: String, requestId: Long, bufferSize: Long) {
         val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
