@@ -24,7 +24,7 @@ class UriContentApi {
     return _api.requestNextChunk(requestId);
   }
 
-  Future<void> startRequest(String url, int requestId, int bufferSize) {
-    return _api.startRequest(url, requestId, bufferSize);
+  Future<void> registerRequest(String url, int requestId, int bufferSize) {
+    return _api.registerRequest(url, requestId, bufferSize);
   }
 }

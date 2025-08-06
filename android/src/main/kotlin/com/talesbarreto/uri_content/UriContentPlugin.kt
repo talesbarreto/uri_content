@@ -3,6 +3,7 @@ package com.talesbarreto.uri_content
 import android.content.ContentResolver
 import androidx.core.net.toUri
 import com.talesbarreto.uri_content.extension.tryUnlock
+import com.talesbarreto.uri_content.model.UriContentActiveRequests
 import com.talesbarreto.uri_content.model.UriContentRequest
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
@@ -31,125 +31,32 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     override val coroutineContext: CoroutineContext = Job() + Dispatchers.Main
     private lateinit var channel: MethodChannel
     private var contentResolver: ContentResolver? = null
-    private val activeRequests = HashMap<Long, UriContentRequest>()
-    private val activeRequestsLock = Mutex()
 
-    private val filesBeingReadCount = MutableStateFlow(0)
+    // A map to keep track of active requests and their metadata.
+    private val activeRequests = UriContentActiveRequests()
 
-    private suspend fun getRequest(requestId: Long): UriContentRequest? {
-        return activeRequestsLock.withLock {
-            activeRequests[requestId]
-        }
-    }
-
-    private suspend fun setRequest(requestId: Long, request: UriContentRequest) {
-        activeRequestsLock.withLock {
-            activeRequests[requestId] = request
-        }
-    }
-
-    private suspend fun deleteRequest(requestId: Long): UriContentRequest? {
-        return activeRequestsLock.withLock {
-            activeRequests.remove(requestId)
-        }
-    }
-
-    private suspend fun updateRequest(
-        requestId: Long,
-        update: UriContentRequest.() -> UriContentRequest
-    ) {
-        activeRequestsLock.withLock {
-            activeRequests[requestId]?.let {
-                activeRequests[requestId] = update(it)
-            }
-        }
-    }
+    // A counter to keep track of how many files are currently being read.
+    private val concurrentReadOperationCounter = MutableStateFlow(0)
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "uri_content")
         channel.setMethodCallHandler(this)
         contentResolver = flutterPluginBinding.applicationContext.contentResolver
-        UriContentPlatformApi.setUp(flutterPluginBinding.binaryMessenger, this)
+        UriContentPlatformApi.setUp(
+            binaryMessenger = flutterPluginBinding.binaryMessenger,
+            api = this
+        )
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannelResult) {
-        if (call.method == "getPlatformVersion") {
-            result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        } else {
-            result.notImplemented()
-        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
     }
 
-    private suspend fun requestContent(url: String, requestId: Long, bufferSize: Long) {
-        val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
-        val readingDataLock = getRequest(requestId)?.readingDataLock ?: return
-        var inputStream: InputStream? = null
-        var bufferedInputStream: BufferedInputStream? = null
-        try {
-            filesBeingReadCount.update { it + 1 }
-            val uri = url.toUri()
-
-            inputStream = contentResolver.openInputStream(uri)
-
-            bufferedInputStream = BufferedInputStream(inputStream, bufferSize.toInt())
-
-            val buffer = ByteArray(bufferSize.toInt())
-
-            val requestLock = getRequest(requestId)?.requestLock ?: return
-            do {
-                // Starts locked by default, it is unlocked by requestNextChunk when dart side
-                // requests the next (or first) data chunk
-                requestLock.lock()
-
-                val bytesRead: Int? = withContext(Dispatchers.IO) {
-                    try {
-                        bufferedInputStream.read(buffer)
-                    } catch (_: Exception) {
-                        null
-                    }
-                }
-
-                if (bytesRead == null) {
-                    updateRequest(requestId) {
-                        copy(readChunk = null, error = "Error reading data")
-                    }
-                    readingDataLock.tryUnlock()
-                    return
-                }
-
-                if (bytesRead == -1) {
-                    updateRequest(requestId) {
-                        copy(readChunk = null, done = true)
-                    }
-                    readingDataLock.tryUnlock()
-                    return
-                }
-
-                val data = buffer.sliceArray(0 until bytesRead)
-                updateRequest(requestId) {
-                    copy(readChunk = data)
-                }
-
-                readingDataLock.tryUnlock()
-            } while (true)
-        } catch (exception: Exception) {
-            updateRequest(requestId) {
-                copy(readChunk = null, error = exception.toString())
-            }
-        } finally {
-            filesBeingReadCount.update { it - 1 }
-            withContext(Dispatchers.IO) {
-                inputStream?.close()
-                bufferedInputStream?.close()
-            }
-        }
-    }
-
-    override fun startRequest(
+    /// See api_interface/uri_content_native_api.dart documentation to understand the API flow.
+    override fun registerRequest(
         url: String,
         requestId: Long,
         bufferSize: Long,
@@ -158,10 +65,10 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         launch {
             try {
                 if (!activeRequests.contains(requestId)) {
-                    setRequest(requestId, UriContentRequest(bufferSize))
+                    activeRequests.registerRequest(requestId, UriContentRequest(bufferSize))
                     callback(Result.success(Unit))
-                    waitForMemoryToBeAvailable(bufferSize)
-                    requestContent(url, requestId, bufferSize)
+                    waitForEnoughMemoryToBeAvailable(bufferSize)
+                    readFileChunks(url, requestId, bufferSize)
                 } else {
                     callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
                 }
@@ -171,38 +78,23 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         }
     }
 
-    private suspend fun waitForMemoryToBeAvailable(bufferSize: Long) {
-        while (Runtime.getRuntime().freeMemory() < 4 * bufferSize) {
-            val filesBeingRead = filesBeingReadCount.value
-
-            // Wait for a change in active requests
-            val currentFilesBeingRead =
-                filesBeingReadCount.filter { it ->
-                    it != filesBeingRead || it < 1
-                }.first()
-
-            if (currentFilesBeingRead <= 1) {
-                break
-            }
-        }
-    }
 
     override fun requestNextChunk(
         requestId: Long,
         callback: (Result<UriContentChunkResult>) -> Unit
     ) {
-        launch(Dispatchers.Main) {
+        launch {
             val result: Result<UriContentChunkResult>
-            val request = getRequest(requestId)
+            val request = activeRequests.getRequest(requestId)
             if (request == null) {
                 callback(Result.failure(Exception("Request not found")))
                 return@launch
             }
 
-            request.readingDataLock.lock() // To be unlocked by [getRequest], after it is finished
-            request.requestLock.tryUnlock() // Release [getRequest] to read next chunk
-            request.readingDataLock.withLock { // Wait for the next chunk to be available
-                val requestResult = getRequest(requestId)
+            request.chunkResultLock.lock() // To be unlocked by [readFileChunks], after it is finished
+            request.nextChunkLock.tryUnlock() // Release [readFileChunks] to read next chunk
+            request.chunkResultLock.withLock { // Wait for the next chunk to be available
+                val requestResult = activeRequests.getRequest(requestId)
                 if (requestResult == null) {
                     result = Result.failure(Exception("Request not found"))
                 } else if (requestResult.done) {
@@ -218,19 +110,106 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                     )
                     cancelRequest(requestId)
                 } else {
-                    val data = requestResult.readChunk
-                    result = Result.success(UriContentChunkResult(data, false))
+                    result = Result.success(
+                        UriContentChunkResult(
+                            chunk = activeRequests.removeReadChunk(requestId),
+                            done = false,
+                        )
+                    )
                 }
             }
             callback(result)
         }
     }
 
+    private suspend fun readFileChunks(url: String, requestId: Long, bufferSize: Long) {
+        val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
+        val chunkResultLock = activeRequests.getChunkResultLock(requestId) ?: return
+        var inputStream: InputStream? = null
+        var bufferedInputStream: BufferedInputStream? = null
+
+        try {
+            concurrentReadOperationCounter.update { it + 1 }
+            val uri = url.toUri()
+
+            inputStream = contentResolver.openInputStream(uri)
+
+            bufferedInputStream = BufferedInputStream(inputStream, bufferSize.toInt())
+
+            val buffer = ByteArray(bufferSize.toInt())
+
+            val nextChunkLock = activeRequests.getNextChunkLock(requestId) ?: return
+
+            while (true) {
+                // Starts locked by default, it is unlocked by requestNextChunk when dart side
+                // requests the next (or first) data chunk
+                nextChunkLock.lock()
+
+                val bytesRead: Int? = withContext(Dispatchers.IO) {
+                    try {
+                        bufferedInputStream.read(buffer)
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
+                if (bytesRead == null) {
+                    activeRequests.updateRequest(requestId) {
+                        copy(readChunk = null, error = "Error reading data")
+                    }
+                    chunkResultLock.tryUnlock()
+                    return
+                }
+
+                if (bytesRead == -1) {
+                    activeRequests.updateRequest(requestId) {
+                        copy(readChunk = null, done = true)
+                    }
+                    chunkResultLock.tryUnlock()
+                    return
+                }
+
+                val data = buffer.sliceArray(0 until bytesRead)
+                activeRequests.updateRequest(requestId) {
+                    copy(readChunk = data)
+                }
+
+                chunkResultLock.tryUnlock()
+            }
+        } catch (exception: Exception) {
+            activeRequests.updateRequest(requestId) {
+                copy(readChunk = null, error = exception.toString())
+            }
+        } finally {
+            concurrentReadOperationCounter.update { it - 1 }
+            withContext(Dispatchers.IO) {
+                inputStream?.close()
+                bufferedInputStream?.close()
+            }
+        }
+    }
+
+    private suspend fun waitForEnoughMemoryToBeAvailable(bufferSize: Long) {
+        while (Runtime.getRuntime().freeMemory() < 4 * bufferSize) {
+            val filesBeingRead = concurrentReadOperationCounter.value
+
+            // Wait for a change in active requests
+            val currentFilesBeingRead =
+                concurrentReadOperationCounter.filter { it ->
+                    it != filesBeingRead || it < 1
+                }.first()
+
+            if (currentFilesBeingRead <= 1) {
+                break
+            }
+        }
+    }
+
     override fun cancelRequest(requestId: Long) {
         launch {
-            val request = deleteRequest(requestId)
-            request?.requestLock?.tryUnlock()
-            request?.readingDataLock?.tryUnlock()
+            val request = activeRequests.deleteRequest(requestId)
+            request?.nextChunkLock?.tryUnlock()
+            request?.chunkResultLock?.tryUnlock()
         }
     }
 

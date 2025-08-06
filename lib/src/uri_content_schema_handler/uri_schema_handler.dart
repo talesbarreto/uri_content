@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-abstract class UriSchemaHandler {
+abstract interface class UriSchemaHandler {
   bool canHandle(Uri uri);
 
   Stream<Uint8List> getContentStream(
