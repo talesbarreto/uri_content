@@ -45,8 +45,8 @@ Stream<Uint8List> contentStream = uriContent.getContentStream(uri);
 
 #### from()
 
-This method retrieves the entire content at once. Be cautious as it may crash your app when attempting to retrieve a large file.
-- Throws exception if it was nos possible to get the content
+This method retrieves the entire content at once. Be cautious, as it may crash your app when attempting to retrieve a large file.
+- Throws an exception if it is not possible to get the content
 
 ```dart
 Future<Uint8List> content = uriContent.from(uri);
@@ -62,15 +62,15 @@ Future<Uint8List?> content = uriContent.fromOrNull(uri);
 
 #### canFetchContent()
 
-This method checks if it is possible to fetch the content from the specified Uri. If it is a file, it checks if it exists. If it is a http/https Uri, it checks if it is reachable.
+This method checks if it is possible to fetch the content from the specified Uri. If it is a file, it checks if it exists. If it is an http/https Uri, it checks if it is reachable.
 
 ```dart
 Future<bool> canFetch = uriContent.canFetchContent(uri);
 ```
 
 #### getContentLength()
-returns the content length in bytes of the specified Uri.
-- It relies on metadata to get the content length so it may **not** be accurate.
+Returns the content length in bytes of the specified Uri.
+- It relies on metadata to get the content length, so it may **not** be accurate.
 - It may throw an exception if the content is not reachable.
 - If the content length is not available, it returns `null`.
 
@@ -80,7 +80,7 @@ Future<int?> contentLength = uriContent.getContentLength(uri);
 
 #### getContentLengthOrNull()
 
-Similar to `getContentLength`, but return `null` on errors.
+Similar to `getContentLength`, but returns `null` on errors.
 
 Note that `null` is ambiguous; it may indicate that the content is not reachable or the content length is unavailable. Hence, it is recommended to use `getContentLength() and handle its exceptions.
 
