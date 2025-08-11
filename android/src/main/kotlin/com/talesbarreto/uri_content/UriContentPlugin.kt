@@ -36,7 +36,13 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     private val activeRequests = UriContentActiveRequests()
 
     // A counter to keep track of how many files are currently being read.
-    private val concurrentReadOperationCounter = MutableStateFlow(0)
+    private val concurrentReadOperationCounterFlow = MutableStateFlow(0)
+
+    private val concurrentReadOperationCounter
+        get() = concurrentReadOperationCounterFlow.value
+
+    private val freeMemory
+        get() = Runtime.getRuntime().freeMemory()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "uri_content")
@@ -129,7 +135,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
         var bufferedInputStream: BufferedInputStream? = null
 
         try {
-            concurrentReadOperationCounter.update { it + 1 }
+            concurrentReadOperationCounterFlow.update { it + 1 }
             val uri = url.toUri()
 
             inputStream = contentResolver.openInputStream(uri)
@@ -145,43 +151,48 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                 // requests the next (or first) data chunk
                 nextChunkLock.lock()
 
+                if (!activeRequests.contains(requestId)) {
+                    chunkResultLock.tryUnlock()
+                    return
+                }
+
+                var exception: Exception? = null
+
                 val bytesRead: Int? = withContext(Dispatchers.IO) {
                     try {
                         bufferedInputStream.read(buffer)
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        exception = e
                         null
                     }
                 }
 
-                if (bytesRead == null) {
-                    activeRequests.updateRequest(requestId) {
-                        copy(readChunk = null, error = "Error reading data")
+                when (bytesRead) {
+                    null -> activeRequests.updateRequest(requestId) {
+                        copy(readChunk = null, error = exception?.toString())
                     }
-                    chunkResultLock.tryUnlock()
-                    return
-                }
 
-                if (bytesRead == -1) {
-                    activeRequests.updateRequest(requestId) {
+                    -1 -> activeRequests.updateRequest(requestId) {
                         copy(readChunk = null, done = true)
                     }
-                    chunkResultLock.tryUnlock()
-                    return
-                }
 
-                val data = buffer.sliceArray(0 until bytesRead)
-                activeRequests.updateRequest(requestId) {
-                    copy(readChunk = data)
+                    else -> {
+                        val data = buffer.sliceArray(0 until bytesRead)
+                        activeRequests.updateRequest(requestId) {
+                            copy(readChunk = data)
+                        }
+                    }
                 }
 
                 chunkResultLock.tryUnlock()
+
             }
         } catch (exception: Exception) {
             activeRequests.updateRequest(requestId) {
                 copy(readChunk = null, error = exception.toString())
             }
         } finally {
-            concurrentReadOperationCounter.update { it - 1 }
+            concurrentReadOperationCounterFlow.update { it - 1 }
             withContext(Dispatchers.IO) {
                 inputStream?.close()
                 bufferedInputStream?.close()
@@ -190,18 +201,11 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     }
 
     private suspend fun waitForEnoughMemoryToBeAvailable(bufferSize: Long) {
-        while (Runtime.getRuntime().freeMemory() < 4 * bufferSize) {
-            val filesBeingRead = concurrentReadOperationCounter.value
+        while (concurrentReadOperationCounter > 1 && freeMemory < 4 * bufferSize) {
+            val oldCount = concurrentReadOperationCounter
 
             // Wait for a change in active requests
-            val currentFilesBeingRead =
-                concurrentReadOperationCounter.filter { it ->
-                    it != filesBeingRead || it < 1
-                }.first()
-
-            if (currentFilesBeingRead <= 1) {
-                break
-            }
+            concurrentReadOperationCounterFlow.filter { it -> it != oldCount || it < 1 }.first()
         }
     }
 

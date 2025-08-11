@@ -61,23 +61,33 @@ class _AndroidContentUriExampleState extends State<AndroidContentUriExample> {
                 ) {
                   final size = snapshot.data?.$1;
                   final data = snapshot.data?.$2;
+                  final error = snapshot.error;
 
                   return Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Card(
                       child: Container(
                         constraints: const BoxConstraints(maxHeight: 300),
-                        child: Column(
-                          children: [
-                            Text(
-                              size == null
-                                  ? 'Unknown size'
-                                  : '${size ~/ 1024} KB',
+                        child: Visibility(
+                          visible: error == null,
+                          replacement: Center(
+                            child: Text(
+                              error.toString(),
+                              style: const TextStyle(color: Colors.red),
                             ),
-                            data == null
-                                ? const CircularProgressIndicator()
-                                : Flexible(child: Image.memory(data)),
-                          ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                size == null
+                                    ? 'Unknown size'
+                                    : '${size ~/ 1024} KB',
+                              ),
+                              data == null
+                                  ? const CircularProgressIndicator()
+                                  : Flexible(child: Image.memory(data)),
+                            ],
+                          ),
                         ),
                       ),
                     ),
