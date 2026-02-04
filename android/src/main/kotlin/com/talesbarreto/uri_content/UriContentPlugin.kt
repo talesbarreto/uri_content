@@ -97,6 +97,20 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
                 return@launch
             }
 
+            // Checking errors on inputStream opening
+            if (request.error != null) {
+                result = Result.success(
+                    UriContentChunkResult(
+                        null,
+                        false,
+                        error = request.error
+                    )
+                )
+                cancelRequest(requestId)
+                callback(result)
+                return@launch
+            }
+
             request.chunkResultLock.lock() // To be unlocked by [readFileChunks], after it is finished
             request.nextChunkLock.tryUnlock() // Release [readFileChunks] to read next chunk
             request.chunkResultLock.withLock { // Wait for the next chunk to be available
