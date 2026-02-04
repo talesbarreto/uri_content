@@ -1,3 +1,6 @@
+## 3.1.2
+- Fixed: Android InputStream opening errors being ignored
+
 ## 3.1.1
 - Optimized cancel logic for `content` scheme reading
 - Return `content` scheme exceptions from Kotlin to content stream
