@@ -1,3 +1,6 @@
+## 3.1.3
+- Swift Package Manager (SPM) support
+
 ## 3.1.2
 - Fixed: Android InputStream opening errors being ignored
 
