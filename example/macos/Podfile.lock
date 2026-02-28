@@ -1,21 +1,15 @@
 PODS:
   - FlutterMacOS (1.0.0)
-  - uri_content (0.0.1):
-    - FlutterMacOS
 
 DEPENDENCIES:
   - FlutterMacOS (from `Flutter/ephemeral`)
-  - uri_content (from `Flutter/ephemeral/.symlinks/plugins/uri_content/macos`)
 
 EXTERNAL SOURCES:
   FlutterMacOS:
     :path: Flutter/ephemeral
-  uri_content:
-    :path: Flutter/ephemeral/.symlinks/plugins/uri_content/macos
 
 SPEC CHECKSUMS:
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  uri_content: e002074bcf6fbf905a3909603f9a2b1b490fce67
 
 PODFILE CHECKSUM: 54d867c82ac51cbd61b565781b9fada492027009
 
