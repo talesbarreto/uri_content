@@ -3,20 +3,11 @@ import 'package:flutter/foundation.dart';
 abstract interface class UriSchemaHandler {
   bool canHandle(Uri uri);
 
-  Stream<Uint8List> getContentStream(
-    Uri uri,
-    UriSchemaHandlerParams params,
-  );
+  Stream<Uint8List> getContentStream(Uri uri, UriSchemaHandlerParams params);
 
-  Future<bool> canFetchContent(
-    Uri uri,
-    UriSchemaHandlerParams params,
-  );
+  Future<bool> canFetchContent(Uri uri, UriSchemaHandlerParams params);
 
-  Future<int?> getContentLength(
-    Uri uri,
-    UriSchemaHandlerParams params,
-  );
+  Future<int?> getContentLength(Uri uri, UriSchemaHandlerParams params);
 }
 
 class UriSchemaHandlerParams {

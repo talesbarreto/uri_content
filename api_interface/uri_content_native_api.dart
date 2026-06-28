@@ -1,13 +1,13 @@
 import 'package:pigeon/pigeon.dart';
 
-@ConfigurePigeon(PigeonOptions(
-  dartOut: "lib/src/platform_api/uri_content_native_api.dart",
-  kotlinOut:
-      "android/src/main/kotlin/com/talesbarreto/uri_content/UriContentPlatformApi.kt",
-  kotlinOptions: KotlinOptions(
-    package: "com.talesbarreto.uri_content",
+@ConfigurePigeon(
+  PigeonOptions(
+    dartOut: "lib/src/platform_api/uri_content_native_api.dart",
+    kotlinOut:
+        "android/src/main/kotlin/com/talesbarreto/uri_content/UriContentPlatformApi.kt",
+    kotlinOptions: KotlinOptions(package: "com.talesbarreto.uri_content"),
   ),
-))
+)
 @HostApi()
 abstract class UriContentPlatformApi {
   /// [registerRequest] prepares a request on Android side, persisting its parameters and returning immediately.
@@ -39,9 +39,5 @@ class UriContentChunkResult {
   final bool done;
   final String? error;
 
-  const UriContentChunkResult(
-    this.chunk,
-    this.done,
-    this.error,
-  );
+  const UriContentChunkResult(this.chunk, this.done, this.error);
 }

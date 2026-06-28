@@ -12,18 +12,12 @@ class DataUriHandler implements UriSchemaHandler {
   }
 
   @override
-  Future<bool> canFetchContent(
-    Uri uri,
-    UriSchemaHandlerParams _,
-  ) {
+  Future<bool> canFetchContent(Uri uri, UriSchemaHandlerParams _) {
     return SynchronousFuture(uri.data != null);
   }
 
   @override
-  Stream<Uint8List> getContentStream(
-    Uri uri,
-    UriSchemaHandlerParams _,
-  ) async* {
+  Stream<Uint8List> getContentStream(Uri uri, UriSchemaHandlerParams _) async* {
     final data = uri.data;
     if (data != null) {
       yield data.contentAsBytes();

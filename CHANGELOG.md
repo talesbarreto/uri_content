@@ -1,3 +1,7 @@
+## 4.0.0
+- Updated minimum supported SDK version to Flutter 3.44 / Dart 3.12
+- Migrated Android plugin and example app to built-in Kotlin
+
 ## 3.1.3
 - Swift Package Manager (SPM) support
 

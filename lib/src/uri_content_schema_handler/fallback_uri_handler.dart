@@ -12,18 +12,12 @@ class FallbackUriHandler implements UriSchemaHandler {
   }
 
   @override
-  Future<bool> canFetchContent(
-    Uri uri,
-    UriSchemaHandlerParams _,
-  ) {
+  Future<bool> canFetchContent(Uri uri, UriSchemaHandlerParams _) {
     return SynchronousFuture(uri.data != null);
   }
 
   @override
-  Stream<Uint8List> getContentStream(
-    Uri uri,
-    UriSchemaHandlerParams _,
-  ) async* {
+  Stream<Uint8List> getContentStream(Uri uri, UriSchemaHandlerParams _) async* {
     try {
       yield uri.data!.contentAsBytes();
     } catch (e) {

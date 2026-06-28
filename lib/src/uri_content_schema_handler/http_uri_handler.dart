@@ -31,10 +31,7 @@ class HttpUriHandler implements UriSchemaHandler {
   }
 
   @override
-  Future<bool> canFetchContent(
-    Uri uri,
-    UriSchemaHandlerParams params,
-  ) async {
+  Future<bool> canFetchContent(Uri uri, UriSchemaHandlerParams params) async {
     try {
       final request = await httpClient.headUrl(uri);
       _addHeadersToRequest(request, params.httpHeaders);
@@ -46,10 +43,7 @@ class HttpUriHandler implements UriSchemaHandler {
   }
 
   @override
-  Future<int?> getContentLength(
-    Uri uri,
-    UriSchemaHandlerParams params,
-  ) async {
+  Future<int?> getContentLength(Uri uri, UriSchemaHandlerParams params) async {
     final request = await httpClient.headUrl(uri);
     _addHeadersToRequest(request, params.httpHeaders);
     final response = await request.close();
