@@ -16,10 +16,12 @@ void main() {
   setUp(() {
     mockUriContentApi = MockUriContentApi();
     when(mockUriContentApi.getNextId).thenReturn(1);
-    when(() => mockUriContentApi.cancelRequest(any()))
-        .thenAnswer((invocation) => SynchronousFuture(null));
-    when(() => mockUriContentApi.registerRequest(any(), any(), any()))
-        .thenAnswer((invocation) => SynchronousFuture(null));
+    when(
+      () => mockUriContentApi.cancelRequest(any()),
+    ).thenAnswer((invocation) => SynchronousFuture(null));
+    when(
+      () => mockUriContentApi.registerRequest(any(), any(), any()),
+    ).thenAnswer((invocation) => SynchronousFuture(null));
     handler = AndroidContentUriHandler(
       uriContentApi: mockUriContentApi,
       targetPlatform: TargetPlatform.android,
@@ -30,15 +32,20 @@ void main() {
   group("when canFetchContent is invoked", () {
     test('returns true when file exists on Android', () async {
       when(() => mockUriContentApi.exists(any())).thenAnswer((_) async => true);
-      expect(await handler.canFetchContent(uri, const UriSchemaHandlerParams()),
-          isTrue);
+      expect(
+        await handler.canFetchContent(uri, const UriSchemaHandlerParams()),
+        isTrue,
+      );
     });
 
     test('returns false when file does not exist on Android', () async {
-      when(() => mockUriContentApi.exists(any()))
-          .thenAnswer((_) async => false);
-      expect(await handler.canFetchContent(uri, const UriSchemaHandlerParams()),
-          isFalse);
+      when(
+        () => mockUriContentApi.exists(any()),
+      ).thenAnswer((_) async => false);
+      expect(
+        await handler.canFetchContent(uri, const UriSchemaHandlerParams()),
+        isFalse,
+      );
     });
 
     test('returns false when platform is not Android', () async {
@@ -47,8 +54,10 @@ void main() {
         targetPlatform: TargetPlatform.fuchsia,
         uriSerializer: (uri) => uri.toString(),
       );
-      expect(await handler.canFetchContent(uri, const UriSchemaHandlerParams()),
-          isFalse);
+      expect(
+        await handler.canFetchContent(uri, const UriSchemaHandlerParams()),
+        isFalse,
+      );
     });
   });
 
@@ -82,8 +91,9 @@ void main() {
         Uint8List.fromList([9, 10, 11, 12]),
       ];
 
-      when(() => mockUriContentApi.registerRequest(any(), any(), any()))
-          .thenAnswer((invocation) => SynchronousFuture(null));
+      when(
+        () => mockUriContentApi.registerRequest(any(), any(), any()),
+      ).thenAnswer((invocation) => SynchronousFuture(null));
 
       when(() => mockUriContentApi.requestNextChunk(any())).thenAnswer(
         (invocation) => SynchronousFuture(
@@ -101,8 +111,9 @@ void main() {
             .getContentStream(uri, const UriSchemaHandlerParams())
             .toList();
 
-        verify(() => mockUriContentApi.registerRequest(any(), any(), any()))
-            .called(1);
+        verify(
+          () => mockUriContentApi.registerRequest(any(), any(), any()),
+        ).called(1);
       });
 
       test("invoke `requestNextChunk` until the last chunk", () async {
@@ -136,8 +147,10 @@ void main() {
 
     group("and stream is cancelled", () {
       test("do not invoke `requestNextChunk`", () async {
-        final stream =
-            handler.getContentStream(uri, const UriSchemaHandlerParams());
+        final stream = handler.getContentStream(
+          uri,
+          const UriSchemaHandlerParams(),
+        );
 
         await for (final _ in stream) {
           break;
@@ -147,8 +160,10 @@ void main() {
       });
 
       test("invoke `cancelRequest`", () async {
-        final stream =
-            handler.getContentStream(uri, const UriSchemaHandlerParams());
+        final stream = handler.getContentStream(
+          uri,
+          const UriSchemaHandlerParams(),
+        );
 
         await for (final _ in stream) {
           break;
@@ -160,15 +175,16 @@ void main() {
 
     group("and an error is emitted", () {
       setUp(() {
-        when(() => mockUriContentApi.requestNextChunk(any()))
-            .thenThrow(Exception("test exception"));
+        when(
+          () => mockUriContentApi.requestNextChunk(any()),
+        ).thenThrow(Exception("test exception"));
       });
 
       test("invoke `cancelRequest`", () async {
         await handler
             .getContentStream(uri, const UriSchemaHandlerParams())
             .first
-            .onError((_, __) => Uint8List(0));
+            .onError((_, _) => Uint8List(0));
 
         verify(() => mockUriContentApi.cancelRequest(any())).called(1);
       });

@@ -41,18 +41,18 @@ class UriContent {
     UriContentApi? uriContentApi,
     TargetPlatform? internalPlatform,
   }) : schemaHandlers = [
-          const DataUriHandler(),
-          const FileUriHandler(),
-          HttpUriHandler(
-            httpClient: httpClient ?? HttpClient(),
-            defaultHttpHeaders: defaultHttpHeaders,
-          ),
-          AndroidContentUriHandler(
-            uriContentApi: uriContentApi ?? UriContentApi(),
-            targetPlatform: internalPlatform ?? getTargetPlatform(),
-            uriSerializer: uriSerializer,
-          ),
-        ];
+         const DataUriHandler(),
+         const FileUriHandler(),
+         HttpUriHandler(
+           httpClient: httpClient ?? HttpClient(),
+           defaultHttpHeaders: defaultHttpHeaders,
+         ),
+         AndroidContentUriHandler(
+           uriContentApi: uriContentApi ?? UriContentApi(),
+           targetPlatform: internalPlatform ?? getTargetPlatform(),
+           uriSerializer: uriSerializer,
+         ),
+       ];
 
   /// Get the content from an Uri.
   /// Supported schemes: data, file, http, https, Android content
@@ -128,9 +128,7 @@ class UriContent {
   }) {
     final handler = _getUriSchemaHandler(uri);
 
-    final params = UriSchemaHandlerParams(
-      httpHeaders: httpHeaders,
-    );
+    final params = UriSchemaHandlerParams(httpHeaders: httpHeaders);
     return handler.canFetchContent(uri, params);
   }
 
@@ -148,9 +146,7 @@ class UriContent {
   }) {
     final handler = _getUriSchemaHandler(uri);
 
-    final params = UriSchemaHandlerParams(
-      httpHeaders: httpHeaders,
-    );
+    final params = UriSchemaHandlerParams(httpHeaders: httpHeaders);
     return handler.getContentLength(uri, params);
   }
 

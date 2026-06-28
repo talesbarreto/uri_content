@@ -12,18 +12,12 @@ class FileUriHandler implements UriSchemaHandler {
   }
 
   @override
-  Future<bool> canFetchContent(
-    Uri uri,
-    UriSchemaHandlerParams _,
-  ) {
+  Future<bool> canFetchContent(Uri uri, UriSchemaHandlerParams _) {
     return File.fromUri(uri).exists();
   }
 
   @override
-  Stream<Uint8List> getContentStream(
-    Uri uri,
-    UriSchemaHandlerParams _,
-  ) {
+  Stream<Uint8List> getContentStream(Uri uri, UriSchemaHandlerParams _) {
     final file = File.fromUri(uri);
     return file.openRead().map(Uint8List.fromList);
   }

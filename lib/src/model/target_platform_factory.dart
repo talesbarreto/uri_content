@@ -18,6 +18,7 @@ TargetPlatform getTargetPlatform() {
       return TargetPlatform.fuchsia;
     default:
       throw UnsupportedError(
-          "Unsupported platform ${Platform.operatingSystem}");
+        "Unsupported platform ${Platform.operatingSystem}",
+      );
   }
 }
