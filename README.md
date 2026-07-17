@@ -1,3 +1,5 @@
+[![PubStats Popularity](https://pubstats.dev/badges/packages/uri_content/popularity.svg)](https://pubstats.dev/packages/uri_content) [![PubStats Rank](https://pubstats.dev/badges/packages/uri_content/rank.svg)](https://pubstats.dev/packages/uri_content) 
+
 `uri_content` enables you to fetch the content of a URI without generating any temporary files during the process.
 
 It supports the following schemes: `file`, `data`, `http/https`, `content` (Android only)
