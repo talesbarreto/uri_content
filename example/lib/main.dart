@@ -31,7 +31,7 @@ class _MyAppState extends State<MyApp> {
           builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
             return Markdown(
               data: snapshot.data ?? snapshot.connectionState.name,
-              imageBuilder: (_, __, ___) => const SizedBox(),
+              sizedImageBuilder: (_) => const SizedBox(),
             );
           },
         ),
