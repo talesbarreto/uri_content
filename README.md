@@ -1,112 +1,111 @@
-[![PubStats Popularity](https://pubstats.dev/badges/packages/uri_content/popularity.svg)](https://pubstats.dev/packages/uri_content) [![PubStats Rank](https://pubstats.dev/badges/packages/uri_content/rank.svg)](https://pubstats.dev/packages/uri_content) 
+[![PubStats Popularity](https://pubstats.dev/badges/packages/uri_content/popularity.svg)](https://pubstats.dev/packages/uri_content) [![PubStats Rank](https://pubstats.dev/badges/packages/uri_content/rank.svg)](https://pubstats.dev/packages/uri_content)
 
-`uri_content` enables you to fetch the content of a URI without generating any temporary files during the process.
+# uri_content
 
-It supports the following schemes: `file`, `data`, `http/https`, `content` (Android only)
+Get `Uint8List` content from a `Uri` in Flutter.
 
-## Getting Started
+This package reads content directly from the original source and streams bytes in memory. **It does not create temporary files** while fetching content.
+
+## Supported URI schemes
+
+- `data:`
+- `file:`
+- `http:`
+- `https:`
+- `content:` (Android only)
+
+## Usage styles
+
+You can use `uri_content` in two ways:
+
+1. `Uri` extension methods (`getContent()` / `getContentOrNull()`).
+2. A `UriContent` instance (recommended for testability, injection, custom headers, and Android `content:` buffer tuning).
+
+## Quick start
 
 ```dart
+import 'dart:typed_data';
 import 'package:uri_content/uri_content.dart';
+
+Future<Uint8List> loadBytes() async {
+  final uri = Uri.parse('https://example.com/file.bin');
+  try {
+    return await uri.getContent(); // extension on Uri
+  } catch (e) {
+    // getContent() can throw when content can't be retrieved.
+    rethrow;
+  }
+}
 ```
 
-There are two ways to use this package: `extension methods` that allow you to fetch content directly from a URI like it was a native method, or through a `UriContent` instance.
+If you prefer nullable behavior on failure:
 
+```dart
+final bytesOrNull = await Uri.parse('https://example.com/file.bin').getContentOrNull();
+```
 
-### UriContent
+## Using `UriContent` directly
 
-`UriContent` is preferred because it offers additional options such as custom HTTP headers and the ability to adjust the default buffer size for content schemes. It also facilitates code testing since you can mock its instance.
+Use `UriContent` when you want dependency injection/mocking, custom headers, a custom `HttpClient`, or control over Android `content:` read buffer size.
+
+```dart
+import 'dart:io';
+import 'package:uri_content/uri_content.dart';
+
+final uriContent = UriContent(
+  defaultHttpHeaders: {'Authorization': 'Bearer <token>'},
+  httpClient: HttpClient(),
+);
+
+final bytes = await uriContent.from(
+  Uri.parse('https://example.com/private.bin'),
+  httpHeaders: {'X-Request-Id': 'abc-123'},
+);
+```
+
+## Streaming large content
+
+`from()` returns all bytes in a single `Uint8List`. For large files, prefer `getContentStream()` to process chunks and reduce memory usage. Fetching very large content with `from()` may use too much memory and can crash your app.
 
 ```dart
 import 'package:uri_content/uri_content.dart';
 
+final uri = Uri.parse('https://example.com/large-file.zip');
+final stream = UriContent().getContentStream(uri);
+
+await for (final chunk in stream) {
+  // process/save chunk
+}
+```
+
+If you stop early, cancel the stream subscription. Always consume the stream to completion or cancel it to avoid resource leaks.
+
+For Android `content:` URIs, `bufferSize` controls chunk size (default: 5 MB). Larger values can considerably increase performance, while smaller values reduce memory consumption:
+
+```dart
+final stream = UriContent().getContentStream(
+  Uri.parse('content://...'),
+  bufferSize: 1024 * 1024, // 1 MB
+);
+```
+
+## Utility methods
+
+```dart
 final uriContent = UriContent();
+final uri = Uri.parse('https://example.com/file.bin');
+
+final canFetch = await uriContent.canFetchContent(uri);
+final length = await uriContent.getContentLength(uri); // may be null
+final lengthOrNull = await uriContent.getContentLengthOrNull(uri);
 ```
 
+- `canFetchContent()` checks whether content can be fetched (for example, file existence for `file:` URIs and reachability for `http/https` URIs).
+- `getContentLength()` uses metadata and may be inaccurate; it can throw if content is not reachable; it returns `null` when length is unavailable.
+- `getContentLengthOrNull()` returns `null` on errors, but `null` is ambiguous (unreachable content vs unavailable length).
 
-```dart
-Future<void> getReadmeLength() async {
-  try {
-    final content = await uriContent.from(Uri.parse(
-      "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md",
-    ));
-    print("Content length is ${content.length}");
-  } catch (e, s) {
-    print("An error happened $e\n$s");
-  }
-}
-```
+## Errors
 
-#### getContentStream()
-
-This method retrieves a Stream of Uint8List where each event represents a chunk of content from the specified URI. This approach is more suitable when you don't need the entire content at once, such as in a request provider or when directly saving the bytes into a File. Handling small chunks significantly reduces memory consumption.
-
-```dart
-Stream<Uint8List> contentStream = uriContent.getContentStream(uri);
-```
-
-#### from()
-
-This method retrieves the entire content at once. Be cautious, as it may crash your app when attempting to retrieve a large file.
-- Throws an exception if it is not possible to get the content
-
-```dart
-Future<Uint8List> content = uriContent.from(uri);
-```
-
-#### fromOrNull()
-
-Similar to `from`, but returns null instead of throwing an exception when an error happens.
-
-```dart
-Future<Uint8List?> content = uriContent.fromOrNull(uri);
-```
-
-#### canFetchContent()
-
-This method checks if it is possible to fetch the content from the specified Uri. If it is a file, it checks if it exists. If it is an http/https Uri, it checks if it is reachable.
-
-```dart
-Future<bool> canFetch = uriContent.canFetchContent(uri);
-```
-
-#### getContentLength()
-Returns the content length in bytes of the specified Uri.
-- It relies on metadata to get the content length, so it may **not** be accurate.
-- It may throw an exception if the content is not reachable.
-- If the content length is not available, it returns `null`.
-
-```dart
-Future<int?> contentLength = uriContent.getContentLength(uri);
-```
-
-#### getContentLengthOrNull()
-
-Similar to `getContentLength`, but returns `null` on errors.
-
-Note that `null` is ambiguous; it may indicate that the content is not reachable or the content length is unavailable. Hence, it is recommended to use `getContentLength() and handle its exceptions.
-
-```dart
-Future<int?> contentLength = uriContent.getContentLengthOrNull(uri);
-```
-
-### Using `getContent()` extension
-
-A handy extension method for `Uri` allows direct fetching of URI content.
-
-```dart
-Future<void> getReadmeContent() async {
-  try {
-    final uri = Uri.parse(
-      "https://raw.githubusercontent.com/talesbarreto/pull_request_coverage/main/README.md",
-    );
-    print(await (uri.getContent().then(utf8.decode)));
-  } catch (e, s) {
-    print("An error happened $e\n$s");
-  }
-}
-
-```
-
-- `getContentOrNull()` is also available, returning `null` instead of throwing an exception when an error happens.
-
+- `from()` and `getContent()` throw when content cannot be retrieved.
+- `fromOrNull()` and `getContentOrNull()` return `null` on errors.
+- Unsupported schemes throw `UnsupportedSchemeError`.
