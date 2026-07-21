@@ -15,14 +15,14 @@ import 'uri_content_schema_handler/uri_schema_handler.dart';
 typedef UriSerializer = String Function(Uri uri);
 
 extension UriContentGetter on Uri {
-  /// The [getContent] extension simplifies the process of retrieving content from a Uri.
-  /// If you don't mind disregarding clean architecture or code testability, you can use it directly.
-  /// However, if you prefer a more flexible approach, you can utilize [UriContent] to make it injectable and mockable.
+  /// [getContent] simplifies retrieving content from a Uri.
+  /// You can call it directly for convenience.
+  /// For better testability and dependency injection, use [UriContent] directly.
   ///
-  /// Note that [getContent] will throw an exception if it is not possible to retrieve the content.
+  /// Throws an exception when content cannot be retrieved.
   Future<Uint8List> getContent() => UriContent().from(this);
 
-  /// same as [getContent] but return `null` on errors.
+  /// Same as [getContent], but returns `null` on errors.
   Future<Uint8List?> getContentOrNull() => UriContent().fromOrNull(this);
 }
 
@@ -33,7 +33,7 @@ class UriContent {
 
   static String _defaultUriSerializer(Uri uri) => uri.toString();
 
-  /// [defaultHttpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
+  /// [defaultHttpHeaders]: https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
   UriContent({
     Map<String, Object> defaultHttpHeaders = const {},
     HttpClient? httpClient,
@@ -54,14 +54,14 @@ class UriContent {
          ),
        ];
 
-  /// Get the content from an Uri.
-  /// Supported schemes: data, file, http, https, Android content
+  /// Retrieves content from a Uri.
+  /// Supported schemes: data, file, http, https, and Android content.
   ///
-  /// [httpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
+  /// [httpHeaders]: https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
   ///
-  /// Throws exception if it was nos possible to get the content
+  /// Throws an exception if content cannot be retrieved.
   ///
-  /// Consider using [getContentStream] if you are retrieving a large file
+  /// Consider using [getContentStream] when retrieving large files.
   Future<Uint8List> from(
     Uri uri, {
     Map<String, Object> httpHeaders = const {},
@@ -72,7 +72,7 @@ class UriContent {
     );
   }
 
-  /// same as [getContentStream] but returns `null` on errors.
+  /// Same as [from], but returns `null` on errors.
   Future<Uint8List?> fromOrNull(
     Uri uri, {
     Map<String, Object> httpHeaders = const {},
@@ -92,18 +92,21 @@ class UriContent {
     );
   }
 
-  /// [getContentStream] returns a Stream of Uint8List where each event represents a chunk of the content from the specified URI.
-  /// This approach is more suitable when you don't need the entire content at once, such as in a request provider or
-  /// when directly saving the bytes into a File.
-  /// Handling small chunks significantly reduces memory consumption.
+  /// Returns a stream of [Uint8List], where each event is a chunk of content from
+  /// the specified Uri.
+  /// This is useful when you do not need the entire content at once, such as when
+  /// forwarding data to another request or writing directly to a [File].
+  /// Processing chunks reduces peak memory usage.
   ///
-  /// [httpHeaders] see https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
+  /// [httpHeaders]: https://api.flutter.dev/flutter/dart-io/HttpHeaders/add.html
   ///
-  /// [bufferSize] sets the total of bytes to be send on each stream event. It ONLY affects `android content` Uris.
-  /// The default value is 5MB. Lower values reduce the memory consumption. Higher values will considerably increase the performance.
+  /// [bufferSize] sets how many bytes are sent per stream event.
+  /// It only affects `android content` URIs.
+  /// The default is 5 MB. Lower values reduce memory usage; higher values can
+  /// improve throughput.
   ///
-  /// Warning: To prevent resource leaks, make sure to either listen to the stream until the end or close it
-  /// if you want to abort the content reading.
+  /// To prevent resource leaks, consume the stream to completion or cancel the
+  /// subscription when aborting content reading.
   Stream<Uint8List> getContentStream(
     Uri uri, {
     int bufferSize = UriSchemaHandlerParams.defaultBufferSize,
@@ -119,9 +122,9 @@ class UriContent {
     yield* handler.getContentStream(uri, params);
   }
 
-  /// [canFetchContent] checks if it is possible to fetch the content from the specified Uri.
-  /// If it is a file, it checks if it exists.
-  /// If it is a http/https Uri, it checks if it is reachable.
+  /// Checks whether content can be fetched from the specified Uri.
+  /// For `file` URIs, this checks whether the file exists.
+  /// For `http`/`https` URIs, this checks whether the resource is reachable.
   Future<bool> canFetchContent(
     Uri uri, {
     Map<String, Object> httpHeaders = const {},
@@ -132,8 +135,8 @@ class UriContent {
     return handler.canFetchContent(uri, params);
   }
 
-  /// [getContentLength] returns the content length in bytes of the specified Uri.
-  /// It relies on metadata to get the content length, so it may NOT be accurate.
+  /// Returns the content length in bytes for the specified Uri.
+  /// This relies on metadata, so it may be inaccurate.
   ///
   /// It may throw an exception if the content is not reachable.
   ///
@@ -150,7 +153,7 @@ class UriContent {
     return handler.getContentLength(uri, params);
   }
 
-  /// Similar to [getContentLength] but return `null` on errors.
+  /// Similar to [getContentLength], but returns `null` on errors.
   ///
   /// Note that `null` is ambiguous; it may indicate that the content is not reachable or the content length is unavailable.
   /// Hence, it is recommended to use [getContentLength] and handle its exceptions.
