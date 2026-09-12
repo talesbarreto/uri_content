@@ -282,7 +282,7 @@ interface UriContentPlatformApi {
    */
   suspend fun requestNextChunk(requestId: Long): UriContentChunkResult
   /** [cancelRequest] cancels the request associated with the given [requestId], releasing any resources associated with it on the Android side. */
-  fun cancelRequest(requestId: Long)
+  suspend fun cancelRequest(requestId: Long)
   suspend fun getContentLength(url: String): Long?
   suspend fun exists(url: String): Boolean
 
@@ -342,13 +342,15 @@ interface UriContentPlatformApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val requestIdArg = args[0] as Long
-            val wrapped: List<Any?> = try {
-              api.cancelRequest(requestIdArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              UriContentPlatformApiPigeonUtils.wrapError(exception)
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.cancelRequest(requestIdArg)
+                listOf(null)
+              } catch (exception: Throwable) {
+                UriContentPlatformApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

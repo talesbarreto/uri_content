@@ -11,7 +11,8 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -25,10 +26,8 @@ import kotlin.coroutines.CoroutineContext
 import io.flutter.plugin.common.MethodChannel.Result as MethodChannelResult
 
 /** UriContentPlugin */
-class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi,
-    CoroutineScope {
+class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi {
 
-    override val coroutineContext: CoroutineContext = Job() + Dispatchers.Main
     private lateinit var channel: MethodChannel
     private var contentResolver: ContentResolver? = null
 
@@ -37,6 +36,7 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
 
     // A counter to keep track of how many files are currently being read.
     private val concurrentReadOperationCounterFlow = MutableStateFlow(0)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val concurrentReadOperationCounter
         get() = concurrentReadOperationCounterFlow.value
@@ -58,57 +58,41 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        scope.cancel()
+        UriContentPlatformApi.setUp(
+            binaryMessenger = binding.binaryMessenger,
+            api = null
+        )
         channel.setMethodCallHandler(null)
     }
 
     /// See api_interface/uri_content_native_api.dart documentation to understand the API flow.
-    override fun registerRequest(
-        url: String,
-        requestId: Long,
-        bufferSize: Long,
-        callback: (Result<Unit>) -> Unit
-    ) {
-        launch {
-            try {
-                if (!activeRequests.contains(requestId)) {
-                    activeRequests.registerRequest(requestId, UriContentRequest(bufferSize))
-                    callback(Result.success(Unit))
-                    waitForEnoughMemoryToBeAvailable(bufferSize)
-                    readFileChunks(url, requestId, bufferSize)
-                } else {
-                    callback(Result.failure(Exception("Can't start request with id $requestId because it already exists")))
-                }
-            } catch (e: Exception) {
-                callback(Result.failure(e))
+    override suspend fun registerRequest(url: String, requestId: Long, bufferSize: Long) {
+        if (!activeRequests.contains(requestId)) {
+            activeRequests.registerRequest(requestId, UriContentRequest(bufferSize))
+            scope.launch {
+                waitForEnoughMemoryToBeAvailable(bufferSize)
+                readFileChunks(url, requestId, bufferSize)
             }
+        } else {
+            throw Exception("Can't start request with id $requestId because it already exists")
         }
     }
 
 
-    override fun requestNextChunk(
-        requestId: Long,
-        callback: (Result<UriContentChunkResult>) -> Unit
-    ) {
-        launch {
-            val result: Result<UriContentChunkResult>
-            val request = activeRequests.getRequest(requestId)
-            if (request == null) {
-                callback(Result.failure(Exception("Request not found")))
-                return@launch
-            }
+    override suspend fun requestNextChunk(requestId: Long): UriContentChunkResult {
+        return withContext(Dispatchers.IO) {
+            val request =
+                activeRequests.getRequest(requestId) ?: throw Exception("Request not found")
 
             // Checking errors on inputStream opening
             if (request.error != null) {
-                result = Result.success(
-                    UriContentChunkResult(
-                        null,
-                        false,
-                        error = request.error
-                    )
-                )
                 cancelRequest(requestId)
-                callback(result)
-                return@launch
+                return@withContext UriContentChunkResult(
+                    null,
+                    false,
+                    error = request.error
+                )
             }
 
             request.chunkResultLock.lock() // To be unlocked by [readFileChunks], after it is finished
@@ -116,29 +100,24 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
             request.chunkResultLock.withLock { // Wait for the next chunk to be available
                 val requestResult = activeRequests.getRequest(requestId)
                 if (requestResult == null) {
-                    result = Result.failure(Exception("Request not found"))
+                    throw Exception("Request not found")
                 } else if (requestResult.done) {
-                    result = Result.success(UriContentChunkResult(null, true))
                     cancelRequest(requestId)
+                    return@withContext UriContentChunkResult(null, true)
                 } else if (requestResult.error != null) {
-                    result = Result.success(
-                        UriContentChunkResult(
-                            null,
-                            false,
-                            error = requestResult.error
-                        )
-                    )
                     cancelRequest(requestId)
+                    return@withContext UriContentChunkResult(
+                        null,
+                        false,
+                        error = requestResult.error
+                    )
                 } else {
-                    result = Result.success(
-                        UriContentChunkResult(
-                            chunk = activeRequests.removeReadChunk(requestId),
-                            done = false,
-                        )
+                    return@withContext UriContentChunkResult(
+                        chunk = activeRequests.removeReadChunk(requestId),
+                        done = false,
                     )
                 }
             }
-            callback(result)
         }
     }
 
@@ -219,62 +198,38 @@ class UriContentPlugin : FlutterPlugin, MethodCallHandler, UriContentPlatformApi
             val oldCount = concurrentReadOperationCounter
 
             // Wait for a change in active requests
-            concurrentReadOperationCounterFlow.filter { it -> it != oldCount || it < 1 }.first()
+            concurrentReadOperationCounterFlow.first { it != oldCount || it < 1 }
         }
     }
 
-    override fun cancelRequest(requestId: Long) {
-        launch {
-            val request = activeRequests.deleteRequest(requestId)
-            request?.nextChunkLock?.tryUnlock()
-            request?.chunkResultLock?.tryUnlock()
+    override suspend fun cancelRequest(requestId: Long) {
+        val request = activeRequests.deleteRequest(requestId)
+        request?.nextChunkLock?.tryUnlock()
+        request?.chunkResultLock?.tryUnlock()
+    }
+
+    override suspend fun getContentLength(url: String): Long? {
+        val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
+        return withContext(Dispatchers.IO) {
+            val uri = url.toUri()
+            val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
+            val contentSize = parcelFileDescriptor?.statSize
+            parcelFileDescriptor?.close()
+            return@withContext contentSize
         }
     }
 
-    override fun getContentLength(url: String, callback: (Result<Long?>) -> Unit) {
-        val contentResolver = contentResolver
-        if (contentResolver == null) {
-            callback(Result.failure(Exception("ContentResolver is null")))
-            return
-        }
-        launch {
-            try {
-                val uri = url.toUri()
-                val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
-                val contentSize = parcelFileDescriptor?.statSize
-                parcelFileDescriptor?.close()
-                withContext(Dispatchers.Main) {
-                    callback(Result.success(contentSize))
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    callback(Result.failure(e))
-                }
-            }
-        }
-    }
+    override suspend fun exists(url: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            val contentResolver = contentResolver ?: throw Exception("ContentResolver is null")
 
-    override fun exists(url: String, callback: (Result<Boolean>) -> Unit) {
-        launch {
-            val contentResolver = contentResolver
-
-            if (contentResolver == null) {
-                withContext(Dispatchers.Main) {
-                    callback(Result.failure(Exception("ContentResolver is null")))
-                }
-                return@launch
-            }
             var stream: InputStream? = null
-            try {
+            return@withContext try {
                 val uri = url.toUri()
                 stream = contentResolver.openInputStream(uri)
-                withContext(Dispatchers.Main) {
-                    callback(Result.success(true))
-                }
+                true
             } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
-                    callback(Result.success(false))
-                }
+                false
             } finally {
                 withContext(Dispatchers.IO) {
                     stream?.close()

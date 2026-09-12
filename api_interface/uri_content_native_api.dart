@@ -25,6 +25,7 @@ abstract class UriContentPlatformApi {
   UriContentChunkResult requestNextChunk(int requestId);
 
   /// [cancelRequest] cancels the request associated with the given [requestId], releasing any resources associated with it on the Android side.
+  @async
   void cancelRequest(int requestId);
 
   @async
