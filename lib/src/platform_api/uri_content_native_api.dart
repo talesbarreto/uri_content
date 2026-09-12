@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,13 +97,8 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 class UriContentChunkResult {
-  UriContentChunkResult({
-    this.chunk,
-    required this.done,
-    this.error,
-  });
+  UriContentChunkResult({this.chunk, required this.done, this.error});
 
   Uint8List? chunk;
 
@@ -111,15 +107,12 @@ class UriContentChunkResult {
   String? error;
 
   List<Object?> _toList() {
-    return <Object?>[
-      chunk,
-      done,
-      error,
-    ];
+    return <Object?>[chunk, done, error];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static UriContentChunkResult decode(Object result) {
     result as List<Object?>;
@@ -139,7 +132,9 @@ class UriContentChunkResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(chunk, other.chunk) && _deepEquals(done, other.done) && _deepEquals(error, other.error);
+    return _deepEquals(chunk, other.chunk) &&
+        _deepEquals(done, other.done) &&
+        _deepEquals(error, other.error);
   }
 
   @override
@@ -152,7 +147,6 @@ class UriContentChunkResult {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -160,7 +154,7 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is UriContentChunkResult) {
+    } else if (value is UriContentChunkResult) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
     } else {
@@ -183,9 +177,13 @@ class UriContentPlatformApi {
   /// Constructor for [UriContentPlatformApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  UriContentPlatformApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  UriContentPlatformApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -197,100 +195,114 @@ class UriContentPlatformApi {
   /// The [requestId] is used to identify the request in subsequent calls to [requestNextChunk] and [cancelRequest].
   /// The [url] is the content URI to be accessed.
   /// The [bufferSize] is the maximum size of each chunk of data to be returned, it also defines the size of the internal buffer used to read data from the content URI on the Android side.
-  Future<void> registerRequest(String url, int requestId, int bufferSize) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.registerRequest$pigeonVar_messageChannelSuffix';
+  Future<void> registerRequest(
+    String url,
+    int requestId,
+    int bufferSize,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.registerRequest$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url, requestId, bufferSize]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url, requestId, bufferSize],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// [requestNextChunk] releases the Android side to read the next chunk of data from the content URI associated with the given [requestId].
   /// It returns a [UriContentChunkResult] that contains the next chunk of data, or an error if something went wrong.
   /// After the chunk is read, the Android side will wait until this method is called again to read the next chunk.
   Future<UriContentChunkResult> requestNextChunk(int requestId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestNextChunk$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.requestNextChunk$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[requestId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[requestId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as UriContentChunkResult;
   }
 
   /// [cancelRequest] cancels the request associated with the given [requestId], releasing any resources associated with it on the Android side.
   Future<void> cancelRequest(int requestId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.cancelRequest$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.cancelRequest$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[requestId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[requestId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<int?> getContentLength(String url) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.getContentLength$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.getContentLength$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as int?;
   }
 
   Future<bool> exists(String url) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.uri_content.UriContentPlatformApi.exists$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.uri_content.UriContentPlatformApi.exists$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 }
